@@ -1,0 +1,56 @@
+{
+  "eDP-1": {
+    "levels": {
+      "0": [
+        {
+          "address": "0x111",
+          "x": 0,
+          "y": 0,
+          "w": 2560,
+          "h": 1600,
+          "namespace": "hyprpaper",
+          "layer": 0,
+          "monitor": 0,
+          "keyboard_interactive": 0,
+          "exclusive": 0
+        }
+      ],
+      "1": [],
+      "2": [
+        {
+          "address": "0x222",
+          "x": 0,
+          "y": 0,
+          "w": 2560,
+          "h": 32,
+          "namespace": "waybar",
+          "layer": 2,
+          "monitor": 0,
+          "keyboard_interactive": 0,
+          "exclusive": 1
+        },
+        {
+          "address": "0x333",
+          "x": 2000,
+          "y": 48,
+          "w": 520,
+          "h": 120,
+          "namespace": "mako",
+          "layer": 2,
+          "monitor": 0,
+          "keyboard_interactive": 0,
+          "exclusive": 0
+        }
+      ],
+      "3": []
+    }
+  },
+  "HDMI-A-1": {
+    "levels": {
+      "0": [],
+      "1": [],
+      "2": [],
+      "3": []
+    }
+  }
+}

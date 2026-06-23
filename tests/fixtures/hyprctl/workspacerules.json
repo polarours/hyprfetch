@@ -1,0 +1,18 @@
+[
+  {
+    "workspaceString": "1",
+    "monitor": "eDP-1",
+    "default": true,
+    "persistent": true
+  },
+  {
+    "workspaceString": "special:music",
+    "monitor": "DP-1",
+    "persistent": false
+  },
+  {
+    "workspaceString": "name:web",
+    "gapsIn": [5, 5, 5, 5],
+    "gapsOut": [20, 20, 20, 20]
+  }
+]

@@ -1,0 +1,10 @@
+[
+  {
+    "file": "/home/user/.config/hypr/hyprland.conf",
+    "line": 42,
+    "message": "invalid workspace rule: monitor eDP missing"
+  },
+  {
+    "description": "unknown option decoration:fake_option"
+  }
+]

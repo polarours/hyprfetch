@@ -1,0 +1,13 @@
+{
+  "class": "kitty",
+  "title": "codex - hyprfetch",
+  "workspace": {
+    "id": 1,
+    "name": "1"
+  },
+  "floating": false,
+  "pinned": false,
+  "mapped": true,
+  "hidden": false,
+  "fullscreen": 1
+}

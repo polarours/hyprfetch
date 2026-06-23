@@ -1,0 +1,17 @@
+[
+  {
+    "app_id": "com.discordapp.Discord",
+    "description": "Mute microphone",
+    "shortcut": "CTRL+ALT+M"
+  },
+  {
+    "application": "OBS Studio",
+    "description": "Toggle recording",
+    "trigger": "CTRL+SHIFT+R"
+  },
+  {
+    "owner": "hyprland",
+    "name": "launcher",
+    "key": "SUPER+Space"
+  }
+]
