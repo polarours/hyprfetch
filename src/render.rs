@@ -432,8 +432,9 @@ fn row_section(id: &str) -> RenderSection {
         | ModuleId::Locale
         | ModuleId::Network
         | ModuleId::Temperature
-        | ModuleId::Audio
-        | ModuleId::Datetime => RenderSection::System,
+        |         ModuleId::Audio
+        | ModuleId::Datetime
+        | ModuleId::Colorscheme => RenderSection::System,
         ModuleId::Hyprland
         | ModuleId::HyprHealth
         | ModuleId::HyprInstances
@@ -526,6 +527,7 @@ fn output_priority(id: &str) -> usize {
         | ModuleId::Temperature
         | ModuleId::Audio
         | ModuleId::Datetime
+        | ModuleId::Colorscheme
         | ModuleId::Wallpaper
         | ModuleId::HyprEcosystem
         | ModuleId::HyprSplash

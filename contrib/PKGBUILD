@@ -1,13 +1,19 @@
+# Maintainer: polarours <polarours@github.com>
 pkgname=hyprfetch-git
-pkgver=0.1.0.r0.g0000000
+pkgver=0.2.0.r0.g0000000
 pkgrel=1
-pkgdesc="Hyprland-native fetch utility"
+pkgdesc="Hyprland-native fetch utility for system, session, and rice state"
 arch=("x86_64" "aarch64")
 url="https://github.com/polarours/hyprfetch"
 license=("MIT")
 depends=("gcc-libs" "glibc")
 makedepends=("cargo" "git")
-optdepends=("hyprland: runtime Hyprland session data")
+optdepends=(
+    "hyprland: runtime Hyprland session data"
+    "pipewire: audio backend detection"
+    "pulseaudio: audio backend detection"
+    "networkmanager: WiFi SSID and signal detection"
+)
 source=("hyprfetch::git+${url}.git")
 sha256sums=("SKIP")
 
@@ -26,6 +32,11 @@ prepare() {
 build() {
   cd "$srcdir/hyprfetch"
   cargo build --release --locked
+}
+
+check() {
+  cd "$srcdir/hyprfetch"
+  cargo test --locked
 }
 
 package() {

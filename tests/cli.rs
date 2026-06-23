@@ -241,3 +241,78 @@ fn strips_fastfetch_logo_color_markers_from_output() {
         .stdout(predicate::str::contains("$1").not())
         .stdout(predicate::str::contains("$2").not());
 }
+
+#[test]
+fn renders_plain_temperature_module() {
+    Command::cargo_bin("hyprfetch")
+        .unwrap()
+        .args(["--plain", "--modules", "temperature"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Temp"));
+}
+
+#[test]
+fn renders_plain_datetime_module() {
+    Command::cargo_bin("hyprfetch")
+        .unwrap()
+        .args(["--plain", "--modules", "datetime"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("DateTime"));
+}
+
+#[test]
+fn renders_plain_network_module() {
+    Command::cargo_bin("hyprfetch")
+        .unwrap()
+        .args(["--plain", "--modules", "network"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Network"));
+}
+
+#[test]
+fn renders_plain_audio_module() {
+    Command::cargo_bin("hyprfetch")
+        .unwrap()
+        .args(["--plain", "--modules", "audio"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Audio"));
+}
+
+#[test]
+fn renders_share_preset() {
+    Command::cargo_bin("hyprfetch")
+        .unwrap()
+        .args(["--share", "--color", "never"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("OS"))
+        .stdout(predicate::str::contains("Kernel"));
+}
+
+#[test]
+fn renders_minimal_style() {
+    Command::cargo_bin("hyprfetch")
+        .unwrap()
+        .args(["--style", "minimal", "--modules", "os,memory"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("OS"))
+        .stdout(predicate::str::contains("Memory"));
+}
+
+#[test]
+fn lists_new_module_ids() {
+    Command::cargo_bin("hyprfetch")
+        .unwrap()
+        .arg("--list-modules")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("temperature"))
+        .stdout(predicate::str::contains("datetime"))
+        .stdout(predicate::str::contains("network"))
+        .stdout(predicate::str::contains("audio"));
+}

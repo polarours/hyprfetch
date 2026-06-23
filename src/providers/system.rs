@@ -165,6 +165,13 @@ pub struct DatetimeInfo {
     pub timezone: String,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct ColorschemeInfo {
+    pub gtk_theme: Option<String>,
+    pub bg_color: Option<String>,
+    pub fg_color: Option<String>,
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct SystemProvider;
 
@@ -218,6 +225,10 @@ impl SystemProvider {
 
     pub fn datetime_info(&self) -> Result<DatetimeInfo, ProviderError> {
         read_datetime_info()
+    }
+
+    pub fn colorscheme_info(&self) -> Result<ColorschemeInfo, ProviderError> {
+        read_colorscheme_info()
     }
 
     pub fn uptime_seconds(&self) -> Result<f64, ProviderError> {
@@ -997,6 +1008,40 @@ fn parse_ip_addr_output(output: &str) -> Option<String> {
         }
     }
     None
+}
+
+fn read_colorscheme_info() -> Result<ColorschemeInfo, ProviderError> {
+    let theme_name = env::var("GTK_THEME")
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+        .or_else(|| {
+            let config_path = env::var_os("XDG_CONFIG_HOME")
+                .map(|v| PathBuf::from(v).join("gtk-3.0/settings.ini"))
+                .or_else(|| {
+                    env::var_os("HOME")
+                        .map(|home| PathBuf::from(home).join(".config/gtk-3.0/settings.ini"))
+                });
+            config_path.and_then(|path| {
+                fs::read_to_string(path)
+                    .ok()
+                    .and_then(|raw| {
+                        for line in raw.lines() {
+                            if let Some((key, value)) = line.split_once('=') {
+                                if key.trim() == "gtk-theme-name" {
+                                    return Some(value.trim().to_string());
+                                }
+                            }
+                        }
+                        None
+                    })
+            })
+        });
+
+    Ok(ColorschemeInfo {
+        gtk_theme: theme_name,
+        bg_color: None,
+        fg_color: None,
+    })
 }
 
 fn read_datetime_info() -> Result<DatetimeInfo, ProviderError> {

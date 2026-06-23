@@ -23,6 +23,7 @@ pub struct NetworkModule;
 pub struct TemperatureModule;
 pub struct AudioModule;
 pub struct DatetimeModule;
+pub struct ColorschemeModule;
 
 impl Module for OsModule {
     fn id(&self) -> ModuleId {
@@ -424,6 +425,26 @@ impl Module for DatetimeModule {
                 )],
                 json!({ "date": info.date, "time": info.time, "timezone": info.timezone }),
             ),
+            Err(error) => ModuleOutput::unavailable(self.id(), error.to_string()),
+        }
+    }
+}
+
+impl Module for ColorschemeModule {
+    fn id(&self) -> ModuleId {
+        ModuleId::Colorscheme
+    }
+
+    fn run(&self, ctx: &ModuleContext<'_>, _config: &ModuleConfig) -> ModuleOutput {
+        match ctx.providers.system.colorscheme_info() {
+            Ok(info) => {
+                let display = info.gtk_theme.clone().unwrap_or_else(|| "unknown".to_string());
+                ModuleOutput::ok(
+                    self.id(),
+                    vec![OutputRow::new("Colors", display)],
+                    json!({ "gtk_theme": info.gtk_theme }),
+                )
+            }
             Err(error) => ModuleOutput::unavailable(self.id(), error.to_string()),
         }
     }
