@@ -727,29 +727,29 @@ impl Module for HyprEcosystemModule {
                 }
 
                 let mut rows = Vec::new();
-                if let Some(value) = ecosystem.wallpaper.as_deref() {
-                    rows.push(OutputRow::new("Wallpaper", value));
+                if let Some((label, _version)) = &ecosystem.wallpaper {
+                    rows.push(OutputRow::new("Wallpaper", label));
                 }
-                if let Some(value) = ecosystem.bar.as_deref() {
-                    rows.push(OutputRow::new("Bar", value));
+                if let Some((label, _version)) = &ecosystem.bar {
+                    rows.push(OutputRow::new("Bar", label));
                 }
-                if let Some(value) = ecosystem.launcher.as_deref() {
-                    rows.push(OutputRow::new("Launcher", value));
+                if let Some((label, _version)) = &ecosystem.launcher {
+                    rows.push(OutputRow::new("Launcher", label));
                 }
-                if let Some(value) = ecosystem.notifications.as_deref() {
-                    rows.push(OutputRow::new("Notifications", value));
+                if let Some((label, _version)) = &ecosystem.notifications {
+                    rows.push(OutputRow::new("Notifications", label));
                 }
-                if let Some(value) = ecosystem.clipboard.as_deref() {
-                    rows.push(OutputRow::new("Clipboard", value));
+                if let Some((label, _version)) = &ecosystem.clipboard {
+                    rows.push(OutputRow::new("Clipboard", label));
                 }
-                if let Some(value) = ecosystem.screenshot.as_deref() {
-                    rows.push(OutputRow::new("Screenshot", value));
+                if let Some((label, _version)) = &ecosystem.screenshot {
+                    rows.push(OutputRow::new("Screenshot", label));
                 }
-                if let Some(value) = ecosystem.idle.as_deref() {
-                    rows.push(OutputRow::new("Idle", value));
+                if let Some((label, _version)) = &ecosystem.idle {
+                    rows.push(OutputRow::new("Idle", label));
                 }
-                if let Some(value) = ecosystem.lock.as_deref() {
-                    rows.push(OutputRow::new("Lock", value));
+                if let Some((label, _version)) = &ecosystem.lock {
+                    rows.push(OutputRow::new("Lock", label));
                 }
 
                 ModuleOutput::ok(self.id(), rows, json!(ecosystem))
@@ -2349,14 +2349,14 @@ mod tests {
     #[test]
     fn summarizes_ecosystem_compact_output() {
         let ecosystem = EcosystemInfo {
-            wallpaper: Some("hyprpaper".to_string()),
-            bar: Some("waybar".to_string()),
-            launcher: Some("fuzzel".to_string()),
-            notifications: Some("mako".to_string()),
-            clipboard: Some("cliphist".to_string()),
-            screenshot: Some("grim".to_string()),
-            idle: Some("hypridle".to_string()),
-            lock: Some("hyprlock".to_string()),
+            wallpaper: Some(("hyprpaper".to_string(), None)),
+            bar: Some(("waybar".to_string(), None)),
+            launcher: Some(("fuzzel".to_string(), None)),
+            notifications: Some(("mako".to_string(), None)),
+            clipboard: Some(("cliphist".to_string(), None)),
+            screenshot: Some(("grim".to_string(), None)),
+            idle: Some(("hypridle".to_string(), None)),
+            lock: Some(("hyprlock".to_string(), None)),
         };
 
         assert_eq!(
@@ -2368,8 +2368,8 @@ mod tests {
     #[test]
     fn drops_wallpaper_from_ecosystem_when_wallpaper_module_is_enabled() {
         let ecosystem = EcosystemInfo {
-            wallpaper: Some("hyprpaper".to_string()),
-            bar: Some("waybar".to_string()),
+            wallpaper: Some(("hyprpaper".to_string(), None)),
+            bar: Some(("waybar".to_string(), None)),
             ..EcosystemInfo::default()
         };
 

@@ -42,14 +42,14 @@ impl ThemeInfo {
 
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct EcosystemInfo {
-    pub wallpaper: Option<String>,
-    pub bar: Option<String>,
-    pub launcher: Option<String>,
-    pub notifications: Option<String>,
-    pub clipboard: Option<String>,
-    pub screenshot: Option<String>,
-    pub idle: Option<String>,
-    pub lock: Option<String>,
+    pub wallpaper: Option<(String, Option<String>)>,
+    pub bar: Option<(String, Option<String>)>,
+    pub launcher: Option<(String, Option<String>)>,
+    pub notifications: Option<(String, Option<String>)>,
+    pub clipboard: Option<(String, Option<String>)>,
+    pub screenshot: Option<(String, Option<String>)>,
+    pub idle: Option<(String, Option<String>)>,
+    pub lock: Option<(String, Option<String>)>,
 }
 
 impl EcosystemInfo {
@@ -62,6 +62,27 @@ impl EcosystemInfo {
             && self.screenshot.is_none()
             && self.idle.is_none()
             && self.lock.is_none()
+    }
+
+    pub fn display_label(&self, field: &str) -> Option<String> {
+        let pair = match field {
+            "wallpaper" => &self.wallpaper,
+            "bar" => &self.bar,
+            "launcher" => &self.launcher,
+            "notifications" => &self.notifications,
+            "clipboard" => &self.clipboard,
+            "screenshot" => &self.screenshot,
+            "idle" => &self.idle,
+            "lock" => &self.lock,
+            _ => return None,
+        };
+        pair.as_ref().map(|(label, version)| {
+            if let Some(v) = version {
+                format!("{label} ({v})")
+            } else {
+                label.clone()
+            }
+        })
     }
 }
 
@@ -95,6 +116,7 @@ impl ThemeProvider {
         let ecosystem = self.ecosystem_info()?;
         ecosystem
             .wallpaper
+            .map(|(label, _)| label)
             .ok_or_else(|| ProviderError::not_found("no known wallpaper backend detected"))
     }
 
@@ -176,7 +198,7 @@ fn read_process_names() -> Result<HashSet<String>, ProviderError> {
 
 fn detect_ecosystem_info(process_names: &HashSet<String>) -> EcosystemInfo {
     EcosystemInfo {
-        wallpaper: detect_process_backend(
+        wallpaper: detect_versioned_backend(
             process_names,
             &[
                 ("hyprpaper", "hyprpaper"),
@@ -186,11 +208,11 @@ fn detect_ecosystem_info(process_names: &HashSet<String>) -> EcosystemInfo {
                 ("waypaper", "waypaper"),
             ],
         ),
-        bar: detect_process_backend(
+        bar: detect_versioned_backend(
             process_names,
             &[("waybar", "waybar"), ("ags", "ags"), ("eww", "eww")],
         ),
-        launcher: detect_process_backend(
+        launcher: detect_versioned_backend(
             process_names,
             &[
                 ("fuzzel", "fuzzel"),
@@ -200,11 +222,11 @@ fn detect_ecosystem_info(process_names: &HashSet<String>) -> EcosystemInfo {
                 ("tofi", "tofi"),
             ],
         ),
-        notifications: detect_process_backend(
+        notifications: detect_versioned_backend(
             process_names,
             &[("mako", "mako"), ("swaync", "swaync"), ("dunst", "dunst")],
         ),
-        clipboard: detect_process_backend(
+        clipboard: detect_versioned_backend(
             process_names,
             &[
                 ("cliphist", "cliphist"),
@@ -212,7 +234,7 @@ fn detect_ecosystem_info(process_names: &HashSet<String>) -> EcosystemInfo {
                 ("wl-paste", "wl-clipboard"),
             ],
         ),
-        screenshot: detect_process_backend(
+        screenshot: detect_versioned_backend(
             process_names,
             &[
                 ("grim", "grim"),
@@ -221,11 +243,11 @@ fn detect_ecosystem_info(process_names: &HashSet<String>) -> EcosystemInfo {
                 ("flameshot", "flameshot"),
             ],
         ),
-        idle: detect_process_backend(
+        idle: detect_versioned_backend(
             process_names,
             &[("hypridle", "hypridle"), ("swayidle", "swayidle")],
         ),
-        lock: detect_process_backend(
+        lock: detect_versioned_backend(
             process_names,
             &[
                 ("hyprlock", "hyprlock"),
@@ -236,15 +258,52 @@ fn detect_ecosystem_info(process_names: &HashSet<String>) -> EcosystemInfo {
     }
 }
 
-fn detect_process_backend(
+fn detect_versioned_backend(
     process_names: &HashSet<String>,
     candidates: &[(&str, &str)],
-) -> Option<String> {
-    candidates.iter().find_map(|(process, label)| {
-        process_names
-            .contains(*process)
-            .then(|| (*label).to_string())
-    })
+) -> Option<(String, Option<String>)> {
+    for (process, label) in candidates {
+        if process_names.contains(*process) {
+            let version = detect_version(process);
+            return Some((label.to_string(), version));
+        }
+    }
+    None
+}
+
+fn detect_version(process: &str) -> Option<String> {
+    let output = std::process::Command::new(process)
+        .args(["--version"])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    for line in stdout.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        if let Some(rest) = trimmed
+            .strip_prefix(process)
+            .filter(|r| !r.is_empty())
+        {
+            return Some(rest.trim().to_string());
+        }
+        if let Some(rest) = trimmed
+            .strip_prefix(&format!("{process} "))
+        {
+            return Some(rest.to_string());
+        }
+        if let Some(rest) = trimmed
+            .strip_prefix(&format!("{process} version "))
+        {
+            return rest.split_whitespace().next().map(str::to_string);
+        }
+        return Some(trimmed.to_string());
+    }
+    None
 }
 
 #[cfg(test)]
@@ -294,11 +353,11 @@ gtk-font-name=Noto Sans,  10
         ]);
 
         let ecosystem = detect_ecosystem_info(&processes);
-        assert_eq!(ecosystem.wallpaper.as_deref(), Some("hyprpaper"));
-        assert_eq!(ecosystem.bar.as_deref(), Some("waybar"));
-        assert_eq!(ecosystem.launcher.as_deref(), Some("fuzzel"));
-        assert_eq!(ecosystem.notifications.as_deref(), Some("mako"));
-        assert_eq!(ecosystem.idle.as_deref(), Some("hypridle"));
-        assert_eq!(ecosystem.lock.as_deref(), Some("hyprlock"));
+        assert_eq!(ecosystem.wallpaper.as_ref().map(|(l, _)| l.as_str()), Some("hyprpaper"));
+        assert_eq!(ecosystem.bar.as_ref().map(|(l, _)| l.as_str()), Some("waybar"));
+        assert_eq!(ecosystem.launcher.as_ref().map(|(l, _)| l.as_str()), Some("fuzzel"));
+        assert_eq!(ecosystem.notifications.as_ref().map(|(l, _)| l.as_str()), Some("mako"));
+        assert_eq!(ecosystem.idle.as_ref().map(|(l, _)| l.as_str()), Some("hypridle"));
+        assert_eq!(ecosystem.lock.as_ref().map(|(l, _)| l.as_str()), Some("hyprlock"));
     }
 }

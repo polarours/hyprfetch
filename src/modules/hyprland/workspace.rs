@@ -108,31 +108,38 @@ pub fn prepare_ecosystem_for_display(
 
 pub fn summarize_ecosystem(ecosystem: &EcosystemInfo) -> String {
     let mut parts = Vec::new();
-    if let Some(value) = ecosystem.wallpaper.as_deref() {
-        parts.push(format!("wall:{value}"));
+    if let Some((label, version)) = &ecosystem.wallpaper {
+        parts.push(format!("wall:{}", eco_display(label, version)));
     }
-    if let Some(value) = ecosystem.bar.as_deref() {
-        parts.push(format!("bar:{value}"));
+    if let Some((label, version)) = &ecosystem.bar {
+        parts.push(format!("bar:{}", eco_display(label, version)));
     }
-    if let Some(value) = ecosystem.launcher.as_deref() {
-        parts.push(format!("launch:{value}"));
+    if let Some((label, version)) = &ecosystem.launcher {
+        parts.push(format!("launch:{}", eco_display(label, version)));
     }
-    if let Some(value) = ecosystem.notifications.as_deref() {
-        parts.push(format!("notify:{value}"));
+    if let Some((label, version)) = &ecosystem.notifications {
+        parts.push(format!("notify:{}", eco_display(label, version)));
     }
-    if let Some(value) = ecosystem.clipboard.as_deref() {
-        parts.push(format!("clip:{value}"));
+    if let Some((label, version)) = &ecosystem.clipboard {
+        parts.push(format!("clip:{}", eco_display(label, version)));
     }
-    if let Some(value) = ecosystem.screenshot.as_deref() {
-        parts.push(format!("shot:{value}"));
+    if let Some((label, version)) = &ecosystem.screenshot {
+        parts.push(format!("shot:{}", eco_display(label, version)));
     }
-    if let Some(value) = ecosystem.idle.as_deref() {
-        parts.push(format!("idle:{value}"));
+    if let Some((label, version)) = &ecosystem.idle {
+        parts.push(format!("idle:{}", eco_display(label, version)));
     }
-    if let Some(value) = ecosystem.lock.as_deref() {
-        parts.push(format!("lock:{value}"));
+    if let Some((label, version)) = &ecosystem.lock {
+        parts.push(format!("lock:{}", eco_display(label, version)));
     }
     parts.join(" ")
+}
+
+fn eco_display(label: &str, version: &Option<String>) -> String {
+    match version {
+        Some(v) if !v.is_empty() => format!("{label} ({v})"),
+        _ => label.to_string(),
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
