@@ -454,7 +454,10 @@ fn read_cpu_stat() -> Result<CpuStat, ProviderError> {
         fields
             .next()
             .ok_or_else(|| ProviderError::parse("not enough fields in /proc/stat"))
-            .and_then(|v| v.parse::<u64>().map_err(|e| ProviderError::parse(format!("invalid cpu stat: {e}"))))
+            .and_then(|v| {
+                v.parse::<u64>()
+                    .map_err(|e| ProviderError::parse(format!("invalid cpu stat: {e}")))
+            })
     };
     Ok(CpuStat {
         user: parse_next()?,
@@ -928,7 +931,10 @@ fn read_gpu_usage(vendor: &str, _device_id: &str) -> Option<f64> {
 
 fn read_nvidia_gpu_usage() -> Option<f64> {
     let output = std::process::Command::new("nvidia-smi")
-        .args(["--query-gpu=utilization.gpu", "--format=csv,noheader,nounits"])
+        .args([
+            "--query-gpu=utilization.gpu",
+            "--format=csv,noheader,nounits",
+        ])
         .output()
         .ok()?;
     if !output.status.success() {

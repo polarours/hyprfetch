@@ -27,6 +27,10 @@ pub struct CliArgs {
     #[arg(long)]
     pub animated: bool,
     #[arg(long)]
+    pub watch: bool,
+    #[arg(long, default_value = "1")]
+    pub watch_interval: u64,
+    #[arg(long)]
     pub style: Option<RenderStyle>,
     #[arg(long, default_value = "auto")]
     pub color: ColorMode,

@@ -318,6 +318,8 @@ pub struct RuntimeConfig {
     pub json: bool,
     pub diagnostics: bool,
     pub animated: bool,
+    pub watch: bool,
+    pub watch_interval: u64,
 }
 
 impl RuntimeConfig {
@@ -482,6 +484,8 @@ pub fn merge(cli: &CliArgs, config: AppConfig) -> RuntimeConfig {
         json: cli.json,
         diagnostics: cli.diagnostics,
         animated: cli.animated,
+        watch: cli.watch,
+        watch_interval: cli.watch_interval,
     }
 }
 
@@ -584,6 +588,8 @@ name = "hyprland"
             plain: true,
             share: false,
             animated: false,
+            watch: false,
+            watch_interval: 1,
             color: ColorMode::Always,
             modules: Some(vec![ModuleId::Os]),
             theme: None,

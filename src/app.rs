@@ -1,4 +1,7 @@
 use anyhow::Result;
+use std::io::{self, Write};
+use std::thread;
+use std::time::Duration;
 
 use crate::animation::Spinner;
 use crate::cli::CliArgs;
@@ -54,6 +57,20 @@ impl App {
         };
 
         render::render(&outputs, &runtime)
+    }
+
+    pub fn run_watch(&self, cli: CliArgs) -> Result<()> {
+        let interval = Duration::from_secs(cli.watch_interval);
+        loop {
+            let output = self.run_cli(cli.clone())?;
+            print!("{output}");
+            io::stdout().flush().ok();
+            thread::sleep(interval);
+        }
+    }
+
+    fn run_cli(&self, cli: CliArgs) -> Result<String> {
+        self.run(cli)
     }
 }
 

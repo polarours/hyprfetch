@@ -744,6 +744,8 @@ mod tests {
             json: false,
             diagnostics: false,
             animated: false,
+            watch: false,
+            watch_interval: 1,
         };
 
         let outputs = vec![
@@ -784,6 +786,8 @@ mod tests {
             json: false,
             diagnostics: false,
             animated: false,
+            watch: false,
+            watch_interval: 1,
         };
         let outputs = vec![ModuleOutput::ok(
             ModuleId::Os,
@@ -815,6 +819,8 @@ mod tests {
             json: false,
             diagnostics: false,
             animated: false,
+            watch: false,
+            watch_interval: 1,
         };
         let outputs = vec![ModuleOutput::ok(
             ModuleId::Theme,
@@ -845,6 +851,8 @@ mod tests {
             json: false,
             diagnostics: false,
             animated: false,
+            watch: false,
+            watch_interval: 1,
         };
         let outputs = vec![ModuleOutput::ok(
             ModuleId::Theme,

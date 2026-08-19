@@ -40,6 +40,10 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
+    if cli.watch {
+        return App::new().run_watch(cli);
+    }
+
     let output = App::new().run(cli)?;
     print!("{output}");
     Ok(())
