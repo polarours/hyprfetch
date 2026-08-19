@@ -26,15 +26,6 @@ struct RenderRow {
     key: String,
     value: String,
     status: ModuleStatus,
-    module_id: String,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum RenderSection {
-    System,
-    Hyprland,
-    Rice,
-    Custom,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -43,7 +34,6 @@ struct InfoRenderOptions {
     value_width: Option<usize>,
     max_line_width: Option<usize>,
     include_header: bool,
-    color_bars_min_line: usize,
 }
 
 pub fn render(outputs: &[ModuleOutput], runtime: &RuntimeConfig) -> Result<String> {
@@ -196,7 +186,6 @@ fn render_split(
             value_width,
             max_line_width: right_width,
             include_header: true,
-            color_bars_min_line: raw_logo.len(),
         },
     );
     let total_lines = raw_logo.len().max(right_lines.len());
@@ -251,7 +240,6 @@ fn render_column(
             value_width,
             max_line_width: right_width,
             include_header: !runtime.is_plain(),
-            color_bars_min_line: 0,
         },
     )
     .into_iter()
@@ -266,7 +254,6 @@ fn render_info_lines(
     options: InfoRenderOptions,
 ) -> Vec<String> {
     let mut lines = Vec::new();
-    let mut last_section = None;
 
     if options.include_header
         && let Some(title) = header_title()
@@ -275,26 +262,18 @@ fn render_info_lines(
         let title = truncate_visible(&title, title_width);
         let rule = "─".repeat(title_width);
         lines.push(style_title(
-            &title,
+            &format!(" {title}"),
             runtime.appearance.palette,
             colors_enabled,
         ));
         lines.push(style_rule(
-            &rule,
+            &format!(" {rule}"),
             runtime.appearance.palette,
             colors_enabled,
         ));
     }
 
     for row in rows {
-        if options.include_header {
-            let section = row_section(&row.module_id);
-            if last_section.is_some_and(|previous| previous != section) {
-                lines.push(String::new());
-            }
-            last_section = Some(section);
-        }
-
         let key = render_key(&row.key, options);
         let styled_key = style_key(&key, runtime.appearance.palette, colors_enabled);
         let value = truncate_row_value(&row.value, options.value_width);
@@ -311,9 +290,6 @@ fn render_info_lines(
     }
 
     if options.include_header && runtime.appearance.color_bars && colors_enabled {
-        while lines.len() + 3 < options.color_bars_min_line {
-            lines.push(String::new());
-        }
         lines.push(String::new());
         lines.push(color_bar(false));
         lines.push(color_bar(true));
@@ -356,11 +332,7 @@ fn render_dense(
     output
 }
 
-fn render_minimal(
-    rows: Vec<RenderRow>,
-    runtime: &RuntimeConfig,
-    colors_enabled: bool,
-) -> String {
+fn render_minimal(rows: Vec<RenderRow>, runtime: &RuntimeConfig, colors_enabled: bool) -> String {
     let key_width = max_key_width(&rows);
     render_info_lines(
         rows,
@@ -371,7 +343,6 @@ fn render_minimal(
             value_width: None,
             max_line_width: None,
             include_header: false,
-            color_bars_min_line: 0,
         },
     )
     .into_iter()
@@ -387,7 +358,6 @@ fn flatten_rows(outputs: &[ModuleOutput]) -> Vec<RenderRow> {
                 key: key.clone(),
                 value: value.clone(),
                 status: output.status,
-                module_id: output.id.clone(),
             });
         }
     }
@@ -405,54 +375,8 @@ fn flatten_rows(outputs: &[ModuleOutput]) -> Vec<RenderRow> {
                 .clone()
                 .unwrap_or_else(|| "unavailable".to_string()),
             status: output.status,
-            module_id: output.id.clone(),
         })
         .collect()
-}
-
-fn row_section(id: &str) -> RenderSection {
-    let Ok(id) = id.parse::<ModuleId>() else {
-        return RenderSection::Custom;
-    };
-
-    match id {
-        ModuleId::Os
-        | ModuleId::Host
-        | ModuleId::Kernel
-        | ModuleId::Uptime
-        | ModuleId::Packages
-        | ModuleId::Shell
-        | ModuleId::Terminal
-        | ModuleId::Cpu
-        | ModuleId::Gpu
-        | ModuleId::Memory
-        | ModuleId::Swap
-        | ModuleId::Disk
-        |         ModuleId::Battery
-        | ModuleId::Locale
-        | ModuleId::Network
-        | ModuleId::Temperature
-        |         ModuleId::Audio
-        | ModuleId::Datetime
-        | ModuleId::Colorscheme => RenderSection::System,
-        ModuleId::Hyprland
-        | ModuleId::HyprHealth
-        | ModuleId::HyprInstances
-        | ModuleId::HyprSplash
-        | ModuleId::HyprActiveWindow
-        | ModuleId::HyprCursor
-        | ModuleId::HyprWorkspaces
-        | ModuleId::HyprMonitors
-        | ModuleId::HyprRice
-        | ModuleId::HyprDevices
-        | ModuleId::HyprBinds
-        | ModuleId::HyprShortcuts
-        | ModuleId::HyprLayouts
-        | ModuleId::HyprLayers
-        | ModuleId::HyprConfig
-        | ModuleId::HyprRules => RenderSection::Hyprland,
-        ModuleId::Theme | ModuleId::Wallpaper | ModuleId::HyprEcosystem => RenderSection::Rice,
-    }
 }
 
 fn render_key(key: &str, options: InfoRenderOptions) -> String {
@@ -657,17 +581,25 @@ fn colors_enabled(mode: ColorMode) -> bool {
     }
 }
 
-fn style_key(value: &str, palette: PaletteName, colors_enabled: bool) -> String {
+fn style_key(value: &str, _palette: PaletteName, colors_enabled: bool) -> String {
     if !colors_enabled {
         return value.to_string();
     }
 
-    match palette {
-        PaletteName::Hypr => value.bold().bright_cyan().to_string(),
-        PaletteName::Mono => value.bold().to_string(),
-        PaletteName::Catppuccin => value.bold().bright_magenta().to_string(),
-        PaletteName::Dracula => value.bold().bright_magenta().to_string(),
-    }
+    // 使用 Tokyo Night 风格的柔和色调
+    let color = match value {
+        "OS" | "Host" | "Kernel" => "\x1b[38;5;110m", // #7aa2f7 柔蓝
+        "Uptime" | "Shell" | "Terminal" => "\x1b[38;5;180m", // #e0af68 柔金
+        "CPU" | "GPU" | "Memory" | "Disk" => "\x1b[38;5;114m", // #9ece6a 柔绿
+        "Battery" | "Locale" => "\x1b[38;5;141m",     // #bb9af7 柔紫
+        "Network" | "Temperature" | "Audio" => "\x1b[38;5;111m", // #7dcfff 柔青
+        "Hyprland" | "Workspace" | "Clients" | "Focused" => "\x1b[38;5;140m", // #c0a7d6 柔薰衣草
+        "Session" | "Window" | "Workspaces" | "Monitors" => "\x1b[38;5;181m", // #ff9e64 柔橘
+        "Theme" | "Ecosystem" | "Input" | "Colors" => "\x1b[38;5;175m", // #f7768e 柔粉
+        _ => "\x1b[38;5;243m",                        // #565f89 柔灰
+    };
+
+    format!("{}{}\x1b[0m", color, value)
 }
 
 fn style_value(
@@ -680,13 +612,14 @@ fn style_value(
         return value.to_string();
     }
 
+    // 使用 Tokyo Night 风格的柔和色调
     match (palette, status) {
-        (_, ModuleStatus::Unavailable) => value.dimmed().to_string(),
-        (_, ModuleStatus::Partial) => value.yellow().to_string(),
-        (PaletteName::Hypr, ModuleStatus::Ok) => value.bright_white().to_string(),
+        (_, ModuleStatus::Unavailable) => format!("\x1b[38;5;243m{}\x1b[0m", value), // 柔灰
+        (_, ModuleStatus::Partial) => format!("\x1b[38;5;215m{}\x1b[0m", value),     // 柔橙
+        (PaletteName::Hypr, ModuleStatus::Ok) => format!("\x1b[38;5;252m{}\x1b[0m", value), // 亮白灰
         (PaletteName::Mono, ModuleStatus::Ok) => value.to_string(),
-        (PaletteName::Catppuccin, ModuleStatus::Ok) => value.bright_green().to_string(),
-        (PaletteName::Dracula, ModuleStatus::Ok) => value.bright_green().to_string(),
+        (PaletteName::Catppuccin, ModuleStatus::Ok) => format!("\x1b[38;5;109m{}\x1b[0m", value), // 柔青
+        (PaletteName::Dracula, ModuleStatus::Ok) => format!("\x1b[38;5;114m{}\x1b[0m", value), // 柔绿
     }
 }
 
@@ -696,10 +629,10 @@ fn style_title(value: &str, palette: PaletteName, colors_enabled: bool) -> Strin
     }
 
     match palette {
-        PaletteName::Hypr => value.bold().bright_white().to_string(),
+        PaletteName::Hypr => format!("\x1b[38;5;255m{}\x1b[0m", value),
         PaletteName::Mono => value.bold().to_string(),
-        PaletteName::Catppuccin => value.bold().bright_white().to_string(),
-        PaletteName::Dracula => value.bold().bright_white().to_string(),
+        PaletteName::Catppuccin => format!("\x1b[38;5;255m{}\x1b[0m", value),
+        PaletteName::Dracula => format!("\x1b[38;5;255m{}\x1b[0m", value),
     }
 }
 
@@ -709,39 +642,40 @@ fn style_rule(value: &str, palette: PaletteName, colors_enabled: bool) -> String
     }
 
     match palette {
-        PaletteName::Hypr => value.bright_cyan().to_string(),
+        PaletteName::Hypr => format!("\x1b[38;5;240m{}\x1b[0m", value),
         PaletteName::Mono => value.dimmed().to_string(),
-        PaletteName::Catppuccin => value.magenta().to_string(),
-        PaletteName::Dracula => value.bright_red().to_string(),
+        PaletteName::Catppuccin => format!("\x1b[38;5;240m{}\x1b[0m", value),
+        PaletteName::Dracula => format!("\x1b[38;5;240m{}\x1b[0m", value),
     }
 }
 
 fn color_bar(bright: bool) -> String {
+    // Tokyo Night 风格的颜色条
     let cells = if bright {
         [
-            "███".bright_black().to_string(),
-            "███".bright_red().to_string(),
-            "███".bright_green().to_string(),
-            "███".bright_yellow().to_string(),
-            "███".bright_blue().to_string(),
-            "███".bright_magenta().to_string(),
-            "███".bright_cyan().to_string(),
-            "███".bright_white().to_string(),
+            "███".truecolor(122, 162, 247).to_string(), // #7aa2f7
+            "███".truecolor(187, 154, 247).to_string(), // #bb9af7
+            "███".truecolor(125, 207, 255).to_string(), // #7dcfff
+            "███".truecolor(158, 206, 106).to_string(), // #9ece6a
+            "███".truecolor(224, 175, 104).to_string(), // #e0af68
+            "███".truecolor(255, 158, 100).to_string(), // #ff9e64
+            "███".truecolor(247, 118, 142).to_string(), // #f7768e
+            "███".truecolor(192, 167, 214).to_string(), // #c0a7d6
         ]
     } else {
         [
-            "███".black().to_string(),
-            "███".red().to_string(),
-            "███".green().to_string(),
-            "███".yellow().to_string(),
-            "███".blue().to_string(),
-            "███".magenta().to_string(),
-            "███".cyan().to_string(),
-            "███".white().to_string(),
+            "███".truecolor(86, 95, 137).to_string(),   // #565f89
+            "███".truecolor(122, 162, 247).to_string(), // #7aa2f7
+            "███".truecolor(187, 154, 247).to_string(), // #bb9af7
+            "███".truecolor(125, 207, 255).to_string(), // #7dcfff
+            "███".truecolor(158, 206, 106).to_string(), // #9ece6a
+            "███".truecolor(224, 175, 104).to_string(), // #e0af68
+            "███".truecolor(255, 158, 100).to_string(), // #ff9e64
+            "███".truecolor(247, 118, 142).to_string(), // #f7768e
         ]
     };
 
-    cells.join(" ")
+    format!(" {}", cells.join(" "))
 }
 
 fn style_logo(
@@ -809,6 +743,7 @@ mod tests {
             plugins: Vec::new(),
             json: false,
             diagnostics: false,
+            animated: false,
         };
 
         let outputs = vec![
@@ -848,6 +783,7 @@ mod tests {
             plugins: Vec::new(),
             json: false,
             diagnostics: false,
+            animated: false,
         };
         let outputs = vec![ModuleOutput::ok(
             ModuleId::Os,
@@ -878,6 +814,7 @@ mod tests {
             plugins: Vec::new(),
             json: false,
             diagnostics: false,
+            animated: false,
         };
         let outputs = vec![ModuleOutput::ok(
             ModuleId::Theme,
@@ -907,6 +844,7 @@ mod tests {
             plugins: Vec::new(),
             json: false,
             diagnostics: false,
+            animated: false,
         };
         let outputs = vec![ModuleOutput::ok(
             ModuleId::Theme,

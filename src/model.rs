@@ -4,6 +4,7 @@ use std::str::FromStr;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+/// Color output mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "kebab-case")]
 pub enum ColorMode {
@@ -37,6 +38,7 @@ impl FromStr for ColorMode {
     }
 }
 
+/// Render style for output formatting.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "kebab-case")]
 pub enum RenderStyle {
@@ -70,6 +72,7 @@ impl FromStr for RenderStyle {
     }
 }
 
+/// Color palette for styled output.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "kebab-case")]
 pub enum PaletteName {
@@ -112,6 +115,7 @@ impl FromStr for PaletteName {
     }
 }
 
+/// Logo preset for distro-specific ASCII art.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "kebab-case")]
 pub enum LogoPreset {
@@ -245,6 +249,7 @@ impl FromStr for LogoPreset {
     }
 }
 
+/// Module identifier for system and Hyprland information.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ModuleId {
@@ -512,6 +517,7 @@ impl FromStr for ModuleId {
     }
 }
 
+/// Status of a module's output.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ModuleStatus {
@@ -520,6 +526,7 @@ pub enum ModuleStatus {
     Unavailable,
 }
 
+/// A key-value row in module output.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OutputRow {
     pub key: String,
@@ -535,6 +542,7 @@ impl OutputRow {
     }
 }
 
+/// Output from a module execution.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModuleOutput {
     pub id: String,

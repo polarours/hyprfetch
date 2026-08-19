@@ -577,6 +577,27 @@ impl HyprlandProvider {
         self.cached(&self.devices, "devices")
     }
 
+    pub fn prefetch(&self) {
+        std::thread::scope(|s| {
+            s.spawn(|| self.version());
+            s.spawn(|| self.instances());
+            s.spawn(|| self.splash());
+            s.spawn(|| self.active_workspace());
+            s.spawn(|| self.workspaces());
+            s.spawn(|| self.active_window());
+            s.spawn(|| self.monitors());
+            s.spawn(|| self.clients());
+            s.spawn(|| self.cursor_position());
+            s.spawn(|| self.binds());
+            s.spawn(|| self.layers());
+            s.spawn(|| self.config_errors());
+            s.spawn(|| self.workspace_rules());
+            s.spawn(|| self.global_shortcuts());
+            s.spawn(|| self.layouts());
+            s.spawn(|| self.devices());
+        });
+    }
+
     pub fn session_env(&self) -> HyprSessionEnv {
         HyprSessionEnv::detect()
     }

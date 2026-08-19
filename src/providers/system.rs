@@ -931,10 +931,9 @@ fn read_network_info() -> Result<NetworkInfo, ProviderError> {
     let default_iface = parse_default_interface(&route_raw)
         .ok_or_else(|| ProviderError::not_found("no default network interface found"))?;
 
-    let ip = read_interface_ip(&default_iface)
-        .ok_or_else(|| ProviderError::not_found(format!(
-            "no IP address found for interface {default_iface}"
-        )))?;
+    let ip = read_interface_ip(&default_iface).ok_or_else(|| {
+        ProviderError::not_found(format!("no IP address found for interface {default_iface}"))
+    })?;
 
     let (ssid, signal_percent, speed_mbps) = read_wifi_info(&default_iface);
 
@@ -1022,18 +1021,16 @@ fn read_colorscheme_info() -> Result<ColorschemeInfo, ProviderError> {
                         .map(|home| PathBuf::from(home).join(".config/gtk-3.0/settings.ini"))
                 });
             config_path.and_then(|path| {
-                fs::read_to_string(path)
-                    .ok()
-                    .and_then(|raw| {
-                        for line in raw.lines() {
-                            if let Some((key, value)) = line.split_once('=') {
-                                if key.trim() == "gtk-theme-name" {
-                                    return Some(value.trim().to_string());
-                                }
+                fs::read_to_string(path).ok().and_then(|raw| {
+                    for line in raw.lines() {
+                        if let Some((key, value)) = line.split_once('=') {
+                            if key.trim() == "gtk-theme-name" {
+                                return Some(value.trim().to_string());
                             }
                         }
-                        None
-                    })
+                    }
+                    None
+                })
             })
         });
 
@@ -1082,9 +1079,7 @@ fn read_datetime_info() -> Result<DatetimeInfo, ProviderError> {
 fn read_temperature_info() -> Result<TemperatureInfo, ProviderError> {
     let thermal_dir = Path::new("/sys/class/thermal");
     if !thermal_dir.exists() {
-        return Err(ProviderError::not_found(
-            "/sys/class/thermal not available",
-        ));
+        return Err(ProviderError::not_found("/sys/class/thermal not available"));
     }
 
     let entries = fs::read_dir(thermal_dir).map_err(ProviderError::io)?;
@@ -1316,10 +1311,7 @@ SwapFree:        7000000 kB
     #[test]
     fn parses_ip_addr_output() {
         let output = "2: wlan0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP group default qlen 1000\n    inet 172.20.10.2/28 brd 172.20.10.15 scope global dynamic wlan0\n       valid_lft 84513sec preferred_lft 84513sec\n";
-        assert_eq!(
-            parse_ip_addr_output(output).as_deref(),
-            Some("172.20.10.2")
-        );
+        assert_eq!(parse_ip_addr_output(output).as_deref(), Some("172.20.10.2"));
     }
 
     #[test]

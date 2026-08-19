@@ -14,8 +14,8 @@ use crate::util::{format_refresh_hz, truncate_visible};
 pub use workspace::{
     WorkspaceRuleSummary, collect_workspace_rules, first_object_bool, first_object_value_string,
     prepare_ecosystem_for_display, summarize_ecosystem, summarize_workspace_rules,
-    workspace_compact_token, workspace_details, workspace_is_special, workspace_label,
-    workspace_name, workspace_rule_rows, workspace_sort_key, summarize_workspaces,
+    summarize_workspaces, workspace_compact_token, workspace_details, workspace_is_special,
+    workspace_label, workspace_name, workspace_rule_rows, workspace_sort_key,
 };
 
 pub struct HyprlandModule;

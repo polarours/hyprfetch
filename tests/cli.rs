@@ -316,3 +316,74 @@ fn lists_new_module_ids() {
         .stdout(predicate::str::contains("network"))
         .stdout(predicate::str::contains("audio"));
 }
+
+#[test]
+fn json_output_contains_module_ids() {
+    Command::cargo_bin("hyprfetch")
+        .unwrap()
+        .args(["--json", "--modules", "os,kernel,memory"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"id\": \"os\""))
+        .stdout(predicate::str::contains("\"id\": \"kernel\""))
+        .stdout(predicate::str::contains("\"id\": \"memory\""));
+}
+
+#[test]
+fn diagnostics_shows_module_status() {
+    Command::cargo_bin("hyprfetch")
+        .unwrap()
+        .args(["--diagnostics", "--modules", "os,temperature,datetime"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("hyprfetch diagnostics"))
+        .stdout(predicate::str::contains("os: ok"))
+        .stdout(predicate::str::contains("temperature:"))
+        .stdout(predicate::str::contains("datetime:"));
+}
+
+#[test]
+fn share_preset_includes_core_modules() {
+    Command::cargo_bin("hyprfetch")
+        .unwrap()
+        .args(["--share", "--color", "never"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("OS"))
+        .stdout(predicate::str::contains("Kernel"))
+        .stdout(predicate::str::contains("Memory"));
+}
+
+#[test]
+fn minimal_style_without_header() {
+    Command::cargo_bin("hyprfetch")
+        .unwrap()
+        .args(["--style", "minimal", "--color", "never", "--modules", "os"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("OS"));
+}
+
+#[test]
+fn list_logos_includes_new_presets() {
+    Command::cargo_bin("hyprfetch")
+        .unwrap()
+        .arg("--list-logos")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("garuda"))
+        .stdout(predicate::str::contains("nobara"))
+        .stdout(predicate::str::contains("artix"))
+        .stdout(predicate::str::contains("asahi"));
+}
+
+#[test]
+fn list_themes_includes_new_palettes() {
+    Command::cargo_bin("hyprfetch")
+        .unwrap()
+        .arg("--list-themes")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("catppuccin"))
+        .stdout(predicate::str::contains("dracula"));
+}

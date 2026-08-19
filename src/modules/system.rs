@@ -438,7 +438,10 @@ impl Module for ColorschemeModule {
     fn run(&self, ctx: &ModuleContext<'_>, _config: &ModuleConfig) -> ModuleOutput {
         match ctx.providers.system.colorscheme_info() {
             Ok(info) => {
-                let display = info.gtk_theme.clone().unwrap_or_else(|| "unknown".to_string());
+                let display = info
+                    .gtk_theme
+                    .clone()
+                    .unwrap_or_else(|| "unknown".to_string());
                 ModuleOutput::ok(
                     self.id(),
                     vec![OutputRow::new("Colors", display)],

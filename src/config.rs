@@ -317,6 +317,7 @@ pub struct RuntimeConfig {
     pub plugins: Vec<PluginConfig>,
     pub json: bool,
     pub diagnostics: bool,
+    pub animated: bool,
 }
 
 impl RuntimeConfig {
@@ -480,6 +481,7 @@ pub fn merge(cli: &CliArgs, config: AppConfig) -> RuntimeConfig {
         plugins,
         json: cli.json,
         diagnostics: cli.diagnostics,
+        animated: cli.animated,
     }
 }
 
@@ -581,6 +583,7 @@ name = "hyprland"
             no_config: false,
             plain: true,
             share: false,
+            animated: false,
             color: ColorMode::Always,
             modules: Some(vec![ModuleId::Os]),
             theme: None,

@@ -211,10 +211,7 @@ pub fn collect_workspace_rules(value: &serde_json::Value) -> Vec<WorkspaceRuleSu
     rules
 }
 
-fn collect_workspace_rules_into(
-    value: &serde_json::Value,
-    rules: &mut Vec<WorkspaceRuleSummary>,
-) {
+fn collect_workspace_rules_into(value: &serde_json::Value, rules: &mut Vec<WorkspaceRuleSummary>) {
     match value {
         serde_json::Value::Array(items) => {
             for item in items {

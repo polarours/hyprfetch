@@ -1,5 +1,6 @@
 use anyhow::Result;
 
+use crate::animation::Spinner;
 use crate::cli::CliArgs;
 use crate::config::{self, ModuleConfig};
 use crate::logo;
@@ -21,22 +22,36 @@ impl App {
         let loaded = config::load(&cli)?;
         let mut runtime = config::merge(&cli, loaded.config);
         let providers = Providers::new();
-        let os_info = providers.system.os_info().ok();
-        runtime.resolved_logo = logo::resolve(runtime.logo, os_info.as_ref());
-        let context = ModuleContext {
-            runtime: &runtime,
-            providers: &providers,
+        let animated = runtime.animated;
+        let json = runtime.json;
+        let diagnostics = runtime.diagnostics;
+
+        let mut collect = || {
+            providers.hyprland.prefetch();
+            let os_info = providers.system.os_info().ok();
+            runtime.resolved_logo = logo::resolve(runtime.logo, os_info.as_ref());
+            let context = ModuleContext {
+                runtime: &runtime,
+                providers: &providers,
+            };
+
+            let mut outputs = runtime
+                .modules
+                .iter()
+                .map(|module_config| {
+                    let output = build_module(module_config.name).run(&context, module_config);
+                    apply_module_display_options(output, module_config)
+                })
+                .collect::<Vec<_>>();
+            outputs.extend(runtime.plugins.iter().map(run_plugin));
+            outputs
         };
 
-        let mut outputs = runtime
-            .modules
-            .iter()
-            .map(|module_config| {
-                let output = build_module(module_config.name).run(&context, module_config);
-                apply_module_display_options(output, module_config)
-            })
-            .collect::<Vec<_>>();
-        outputs.extend(runtime.plugins.iter().map(run_plugin));
+        let outputs = if animated && !json && !diagnostics {
+            Spinner::new("Collecting system information").run(collect)
+        } else {
+            collect()
+        };
 
         render::render(&outputs, &runtime)
     }

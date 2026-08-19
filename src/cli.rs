@@ -25,6 +25,8 @@ pub struct CliArgs {
     #[arg(long)]
     pub share: bool,
     #[arg(long)]
+    pub animated: bool,
+    #[arg(long)]
     pub style: Option<RenderStyle>,
     #[arg(long, default_value = "auto")]
     pub color: ColorMode,
