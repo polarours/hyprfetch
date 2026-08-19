@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use serde_json::json;
 
 use crate::config::ModuleConfig;
@@ -157,13 +159,27 @@ impl Module for CpuModule {
     }
 
     fn run(&self, ctx: &ModuleContext<'_>, _config: &ModuleConfig) -> ModuleOutput {
-        match ctx.providers.system.cpu_model() {
-            Ok(cpu) => ModuleOutput::ok(
+        let model = ctx.providers.system.cpu_model();
+        let usage = ctx.providers.system.cpu_usage(Duration::from_millis(500));
+        match (model, usage) {
+            (Ok(cpu), Ok(usage)) => {
+                let row = format!(
+                    "{cpu}  {percent:.1}% ({n} threads)",
+                    percent = usage.usage_percent,
+                    n = usage.num_logical_cpus
+                );
+                ModuleOutput::ok(
+                    self.id(),
+                    vec![OutputRow::new("CPU", row)],
+                    json!({ "model": cpu, "usage_percent": usage.usage_percent, "num_logical_cpus": usage.num_logical_cpus }),
+                )
+            }
+            (Ok(cpu), Err(_)) => ModuleOutput::ok(
                 self.id(),
-                vec![OutputRow::new("CPU", cpu.clone())],
+                vec![OutputRow::new("CPU", &cpu)],
                 json!({ "model": cpu }),
             ),
-            Err(error) => ModuleOutput::unavailable(self.id(), error.to_string()),
+            (Err(error), _) => ModuleOutput::unavailable(self.id(), error.to_string()),
         }
     }
 }

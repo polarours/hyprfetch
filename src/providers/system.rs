@@ -109,16 +109,23 @@ pub struct BatteryInfo {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct CpuUsageInfo {
+    pub usage_percent: f64,
+    pub num_logical_cpus: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct GpuInfo {
     pub vendor: String,
     pub device_id: String,
     pub model: Option<String>,
     pub vram_mib: Option<u64>,
+    pub usage_percent: Option<f64>,
 }
 
 impl GpuInfo {
     pub fn display_name(&self) -> String {
-        match (&self.model, self.vram_mib) {
+        let base = match (&self.model, self.vram_mib) {
             (Some(model), Some(vram)) if starts_with_vendor(model, &self.vendor) => {
                 format!("{model} ({vram} MiB)")
             }
@@ -127,6 +134,11 @@ impl GpuInfo {
             (Some(model), _) => format!("{} {}", self.vendor, model),
             (None, Some(vram)) => format!("{} {} ({vram} MiB)", self.vendor, self.device_id),
             (None, _) => format!("{} {}", self.vendor, self.device_id),
+        };
+        if let Some(usage) = self.usage_percent {
+            format!("{base} ({usage:.1}%)")
+        } else {
+            base
         }
     }
 }
@@ -247,6 +259,18 @@ impl SystemProvider {
         parse_cpu_model(&raw)
     }
 
+    pub fn cpu_usage(&self, interval: std::time::Duration) -> Result<CpuUsageInfo, ProviderError> {
+        let stats1 = read_cpu_stat()?;
+        std::thread::sleep(interval);
+        let stats2 = read_cpu_stat()?;
+        let usage = cpu_usage_percent(&stats1, &stats2);
+        let num_logical_cpus = num_logical_cpus()?;
+        Ok(CpuUsageInfo {
+            usage_percent: usage,
+            num_logical_cpus,
+        })
+    }
+
     pub fn memory_info(&self) -> Result<MemoryInfo, ProviderError> {
         let raw = fs::read_to_string("/proc/meminfo").map_err(ProviderError::io)?;
         parse_meminfo(&raw)
@@ -302,11 +326,15 @@ impl SystemProvider {
 
         Ok(gpus
             .into_iter()
-            .map(|(vendor, device_id, model, vram_mib)| GpuInfo {
-                vendor,
-                device_id,
-                model,
-                vram_mib,
+            .map(|(vendor, device_id, model, vram_mib)| {
+                let usage_percent = read_gpu_usage(&vendor, &device_id);
+                GpuInfo {
+                    vendor,
+                    device_id,
+                    model,
+                    vram_mib,
+                    usage_percent,
+                }
             })
             .collect())
     }
@@ -401,6 +429,65 @@ fn parse_cpu_model(raw: &str) -> Result<String, ProviderError> {
         }
     }
     Err(ProviderError::parse("missing cpu model"))
+}
+
+#[derive(Debug, Clone, Default)]
+struct CpuStat {
+    user: u64,
+    nice: u64,
+    system: u64,
+    idle: u64,
+    iowait: u64,
+    irq: u64,
+    softirq: u64,
+    steal: u64,
+}
+
+fn read_cpu_stat() -> Result<CpuStat, ProviderError> {
+    let raw = fs::read_to_string("/proc/stat").map_err(ProviderError::io)?;
+    let first_line = raw
+        .lines()
+        .next()
+        .ok_or_else(|| ProviderError::parse("/proc/stat is empty"))?;
+    let mut fields = first_line.split_whitespace().skip(1);
+    let mut parse_next = || -> Result<u64, ProviderError> {
+        fields
+            .next()
+            .ok_or_else(|| ProviderError::parse("not enough fields in /proc/stat"))
+            .and_then(|v| v.parse::<u64>().map_err(|e| ProviderError::parse(format!("invalid cpu stat: {e}"))))
+    };
+    Ok(CpuStat {
+        user: parse_next()?,
+        nice: parse_next()?,
+        system: parse_next()?,
+        idle: parse_next()?,
+        iowait: parse_next()?,
+        irq: parse_next()?,
+        softirq: parse_next()?,
+        steal: parse_next()?,
+    })
+}
+
+fn cpu_usage_percent(a: &CpuStat, b: &CpuStat) -> f64 {
+    let idle_delta = b.idle + b.iowait - a.idle - a.iowait;
+    let total_a: u64 = a.user + a.nice + a.system + a.idle + a.iowait + a.irq + a.softirq + a.steal;
+    let total_b: u64 = b.user + b.nice + b.system + b.idle + b.iowait + b.irq + b.softirq + b.steal;
+    let total_delta = total_b.saturating_sub(total_a);
+    if total_delta == 0 {
+        return 0.0;
+    }
+    (1.0 - idle_delta as f64 / total_delta as f64) * 100.0
+}
+
+fn num_logical_cpus() -> Result<usize, ProviderError> {
+    let raw = fs::read_to_string("/proc/cpuinfo").map_err(ProviderError::io)?;
+    let count = raw
+        .lines()
+        .filter(|line| line.starts_with("processor"))
+        .count();
+    (count > 0)
+        .then_some(count)
+        .ok_or_else(|| ProviderError::parse("no processor entries in /proc/cpuinfo"))
 }
 
 fn parse_meminfo(raw: &str) -> Result<MemoryInfo, ProviderError> {
@@ -826,6 +913,73 @@ fn starts_with_vendor(model: &str, vendor: &str) -> bool {
         .starts_with(&vendor.to_ascii_lowercase())
 }
 
+fn read_gpu_usage(vendor: &str, _device_id: &str) -> Option<f64> {
+    if vendor.eq_ignore_ascii_case("nvidia") {
+        return read_nvidia_gpu_usage();
+    }
+    if vendor.eq_ignore_ascii_case("amd") || vendor.eq_ignore_ascii_case("advanced micro devices") {
+        return read_amd_gpu_usage();
+    }
+    if vendor.eq_ignore_ascii_case("intel") {
+        return read_intel_gpu_usage();
+    }
+    None
+}
+
+fn read_nvidia_gpu_usage() -> Option<f64> {
+    let output = std::process::Command::new("nvidia-smi")
+        .args(["--query-gpu=utilization.gpu", "--format=csv,noheader,nounits"])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let first_line = stdout.lines().next()?.trim();
+    first_line.parse::<f64>().ok()
+}
+
+fn read_amd_gpu_usage() -> Option<f64> {
+    let drm_path = Path::new("/sys/class/drm");
+    for entry in fs::read_dir(drm_path).ok()? {
+        let entry = entry.ok()?;
+        let name = entry.file_name();
+        let name_str = name.to_str()?;
+        if !name_str.starts_with("card") || name_str.contains('-') {
+            continue;
+        }
+        let busy_path = entry.path().join("device/gpu_busy_percent");
+        if let Ok(raw) = fs::read_to_string(&busy_path) {
+            if let Ok(percent) = raw.trim().parse::<f64>() {
+                return Some(percent);
+            }
+        }
+    }
+    None
+}
+
+fn read_intel_gpu_usage() -> Option<f64> {
+    let drm_path = Path::new("/sys/class/drm");
+    for entry in fs::read_dir(drm_path).ok()? {
+        let entry = entry.ok()?;
+        let name = entry.file_name();
+        let name_str = name.to_str()?;
+        if !name_str.starts_with("card") || name_str.contains('-') {
+            continue;
+        }
+        let busy_path = entry.path().join("device/gt_perf_status");
+        if let Ok(raw) = fs::read_to_string(&busy_path) {
+            let fields: Vec<&str> = raw.split_whitespace().collect();
+            if fields.len() >= 2 {
+                if let Ok(percent) = fields[1].trim_end_matches('%').parse::<f64>() {
+                    return Some(percent);
+                }
+            }
+        }
+    }
+    None
+}
+
 fn read_gpu_vram(device_path: &Path) -> Option<u64> {
     let vram_total = device_path.join("mem_info_vram_total");
     if let Ok(raw) = fs::read_to_string(vram_total) {
@@ -1191,9 +1345,9 @@ fn detect_pulse_default_sink() -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        GpuInfo, HostInfo, clean_dmi_value, parse_cpu_model, parse_default_interface,
-        parse_ip_addr_output, parse_meminfo, parse_mountinfo_filesystem, parse_os_release,
-        parse_pci_ids, parse_swapinfo,
+        CpuStat, GpuInfo, HostInfo, clean_dmi_value, cpu_usage_percent, parse_cpu_model,
+        parse_default_interface, parse_ip_addr_output, parse_meminfo, parse_mountinfo_filesystem,
+        parse_os_release, parse_pci_ids, parse_swapinfo,
     };
 
     #[test]
@@ -1297,6 +1451,7 @@ SwapFree:        7000000 kB
             device_id: "0x7d55".to_string(),
             model: Some("Intel Arc Graphics".to_string()),
             vram_mib: None,
+            usage_percent: None,
         };
 
         assert_eq!(gpu.display_name(), "Intel Arc Graphics");
@@ -1324,8 +1479,44 @@ SwapFree:        7000000 kB
     }
 
     #[test]
-    fn parse_ip_addr_returns_none_on_empty() {
+    fn parses_ip_addr_returns_none_on_empty() {
         assert_eq!(parse_ip_addr_output(""), None);
         assert_eq!(parse_ip_addr_output("no interfaces found"), None);
+    }
+
+    #[test]
+    fn parses_cpu_stat_and_computes_usage() {
+        let stat_a = CpuStat {
+            user: 100,
+            nice: 10,
+            system: 50,
+            idle: 1000,
+            iowait: 5,
+            irq: 0,
+            softirq: 0,
+            steal: 0,
+        };
+        let stat_b = CpuStat {
+            user: 200,
+            nice: 20,
+            system: 100,
+            idle: 1000,
+            iowait: 10,
+            irq: 0,
+            softirq: 0,
+            steal: 0,
+        };
+        // total delta: (200-100)+(20-10)+(100-50)+(1000-1000)+(10-5) = 100+10+50+0+5 = 165
+        // idle delta: (1000-1000)+(10-5) = 0+5 = 5
+        // usage = (165-5)/165 = 160/165 ≈ 96.97%
+        let usage = cpu_usage_percent(&stat_a, &stat_b);
+        assert!((usage - 96.97).abs() < 0.1);
+    }
+
+    #[test]
+    fn cpu_usage_is_zero_when_no_delta() {
+        let stat = CpuStat::default();
+        let usage = cpu_usage_percent(&stat, &stat);
+        assert_eq!(usage, 0.0);
     }
 }
