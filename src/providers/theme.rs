@@ -285,20 +285,13 @@ fn detect_version(process: &str) -> Option<String> {
         if trimmed.is_empty() {
             continue;
         }
-        if let Some(rest) = trimmed
-            .strip_prefix(process)
-            .filter(|r| !r.is_empty())
-        {
+        if let Some(rest) = trimmed.strip_prefix(process).filter(|r| !r.is_empty()) {
             return Some(rest.trim().to_string());
         }
-        if let Some(rest) = trimmed
-            .strip_prefix(&format!("{process} "))
-        {
+        if let Some(rest) = trimmed.strip_prefix(&format!("{process} ")) {
             return Some(rest.to_string());
         }
-        if let Some(rest) = trimmed
-            .strip_prefix(&format!("{process} version "))
-        {
+        if let Some(rest) = trimmed.strip_prefix(&format!("{process} version ")) {
             return rest.split_whitespace().next().map(str::to_string);
         }
         return Some(trimmed.to_string());
@@ -353,11 +346,29 @@ gtk-font-name=Noto Sans,  10
         ]);
 
         let ecosystem = detect_ecosystem_info(&processes);
-        assert_eq!(ecosystem.wallpaper.as_ref().map(|(l, _)| l.as_str()), Some("hyprpaper"));
-        assert_eq!(ecosystem.bar.as_ref().map(|(l, _)| l.as_str()), Some("waybar"));
-        assert_eq!(ecosystem.launcher.as_ref().map(|(l, _)| l.as_str()), Some("fuzzel"));
-        assert_eq!(ecosystem.notifications.as_ref().map(|(l, _)| l.as_str()), Some("mako"));
-        assert_eq!(ecosystem.idle.as_ref().map(|(l, _)| l.as_str()), Some("hypridle"));
-        assert_eq!(ecosystem.lock.as_ref().map(|(l, _)| l.as_str()), Some("hyprlock"));
+        assert_eq!(
+            ecosystem.wallpaper.as_ref().map(|(l, _)| l.as_str()),
+            Some("hyprpaper")
+        );
+        assert_eq!(
+            ecosystem.bar.as_ref().map(|(l, _)| l.as_str()),
+            Some("waybar")
+        );
+        assert_eq!(
+            ecosystem.launcher.as_ref().map(|(l, _)| l.as_str()),
+            Some("fuzzel")
+        );
+        assert_eq!(
+            ecosystem.notifications.as_ref().map(|(l, _)| l.as_str()),
+            Some("mako")
+        );
+        assert_eq!(
+            ecosystem.idle.as_ref().map(|(l, _)| l.as_str()),
+            Some("hypridle")
+        );
+        assert_eq!(
+            ecosystem.lock.as_ref().map(|(l, _)| l.as_str()),
+            Some("hyprlock")
+        );
     }
 }

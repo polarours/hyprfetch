@@ -577,6 +577,20 @@ impl HyprlandProvider {
         self.cached(&self.devices, "devices")
     }
 
+    pub fn workspace_history(&self) -> Result<String, ProviderError> {
+        let option = self.option("animations:workspace:lastforeignfocus")?;
+        let ws_name = option
+            .str_value
+            .or_else(|| {
+                option
+                    .data
+                    .as_ref()
+                    .and_then(|v| v.as_str().map(str::to_string))
+            })
+            .ok_or_else(|| ProviderError::parse("lastforeignfocus has no string value"))?;
+        Ok(ws_name)
+    }
+
     pub fn prefetch(&self) {
         std::thread::scope(|s| {
             s.spawn(|| self.version());
@@ -588,6 +602,7 @@ impl HyprlandProvider {
             s.spawn(|| self.monitors());
             s.spawn(|| self.clients());
             s.spawn(|| self.cursor_position());
+            s.spawn(|| self.workspace_history());
             s.spawn(|| self.binds());
             s.spawn(|| self.layers());
             s.spawn(|| self.config_errors());

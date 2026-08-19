@@ -26,6 +26,7 @@ pub struct HyprWorkspacesModule;
 pub struct HyprMonitorsModule;
 pub struct HyprActiveWindowModule;
 pub struct HyprCursorModule;
+pub struct HyprWorkspaceHistoryModule;
 pub struct HyprRiceModule;
 pub struct HyprDevicesModule;
 pub struct HyprBindsModule;
@@ -408,6 +409,35 @@ impl Module for HyprCursorModule {
                 json!(position),
             ),
             Err(error) => ModuleOutput::unavailable(self.id(), error.to_string()),
+        }
+    }
+}
+
+impl Module for HyprWorkspaceHistoryModule {
+    fn id(&self) -> ModuleId {
+        ModuleId::HyprWorkspaceHistory
+    }
+
+    fn run(&self, ctx: &ModuleContext<'_>, _config: &ModuleConfig) -> ModuleOutput {
+        match (
+            ctx.providers.hyprland.active_workspace(),
+            ctx.providers.hyprland.workspace_history(),
+        ) {
+            (Ok(active), Ok(history)) => {
+                let row = format!(
+                    "{history} ← {active}",
+                    history = history,
+                    active = active.display_name()
+                );
+                ModuleOutput::ok(
+                    self.id(),
+                    vec![OutputRow::new("Hist", row)],
+                    json!({ "history": history, "active": active }),
+                )
+            }
+            (Err(_), Err(e)) => ModuleOutput::unavailable(self.id(), e.to_string()),
+            (Err(e), _) => ModuleOutput::unavailable(self.id(), e.to_string()),
+            (_, Err(e)) => ModuleOutput::unavailable(self.id(), e.to_string()),
         }
     }
 }

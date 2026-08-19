@@ -45,6 +45,7 @@ pub fn build_module(id: ModuleId) -> Box<dyn Module> {
         ModuleId::HyprMonitors => Box::new(hyprland::HyprMonitorsModule),
         ModuleId::HyprActiveWindow => Box::new(hyprland::HyprActiveWindowModule),
         ModuleId::HyprCursor => Box::new(hyprland::HyprCursorModule),
+        ModuleId::HyprWorkspaceHistory => Box::new(hyprland::HyprWorkspaceHistoryModule),
         ModuleId::HyprRice => Box::new(hyprland::HyprRiceModule),
         ModuleId::HyprConfig => Box::new(hyprland::HyprConfigModule),
         ModuleId::HyprRules => Box::new(hyprland::HyprRulesModule),

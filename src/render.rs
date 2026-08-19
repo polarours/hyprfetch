@@ -433,6 +433,7 @@ fn output_priority(id: &str) -> usize {
         | ModuleId::HyprInstances
         | ModuleId::HyprActiveWindow
         | ModuleId::HyprCursor
+        | ModuleId::HyprWorkspaceHistory
         | ModuleId::HyprWorkspaces
         | ModuleId::HyprMonitors => 0,
         ModuleId::Shell
