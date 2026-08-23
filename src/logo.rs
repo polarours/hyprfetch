@@ -110,6 +110,9 @@ const UBUNTU_ALIASES: &[&str] = &[
     "rhinolinux",
     "peppermint",
     "lliurex",
+    "pop",
+    "popos",
+    "pop os",
 ];
 const DEBIAN_ALIASES: &[&str] = &[
     "debian",
@@ -140,12 +143,15 @@ const OPENSUSE_ALIASES: &[&str] = &[
     "leap",
     "slowroll",
     "aeon",
+    "kairos",
 ];
 const VOID_ALIASES: &[&str] = &["void"];
 const ALPINE_ALIASES: &[&str] = &["alpine", "postmarketos", "postmarket os"];
 const POP_ALIASES: &[&str] = &["pop", "popos", "pop os"];
 const GENTOO_ALIASES: &[&str] = &["gentoo", "funtoo", "calculate", "redcore", "pentoo"];
 const MANJARO_ALIASES: &[&str] = &["manjaro"];
+const SLACKWARE_ALIASES: &[&str] = &["slackware"];
+const MAGEIA_ALIASES: &[&str] = &["mageia"];
 
 pub fn resolve(requested: LogoPreset, os_info: Option<&OsInfo>) -> LogoPreset {
     if !matches!(requested, LogoPreset::Auto) {
@@ -371,6 +377,22 @@ pub fn definitions() -> &'static [LogoDefinition] {
             art: include_str!("../assets/logos/manjaro.txt"),
             primary: LogoTone::Green,
             accent: LogoTone::Cyan,
+            wordmark: LogoTone::White,
+        },
+        LogoDefinition {
+            preset: LogoPreset::Slackware,
+            aliases: SLACKWARE_ALIASES,
+            art: include_str!("../assets/logos/slackware.txt"),
+            primary: LogoTone::Blue,
+            accent: LogoTone::Cyan,
+            wordmark: LogoTone::White,
+        },
+        LogoDefinition {
+            preset: LogoPreset::Mageia,
+            aliases: MAGEIA_ALIASES,
+            art: include_str!("../assets/logos/mageia.txt"),
+            primary: LogoTone::Cyan,
+            accent: LogoTone::Blue,
             wordmark: LogoTone::White,
         },
     ]

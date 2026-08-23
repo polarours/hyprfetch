@@ -144,6 +144,8 @@ pub enum LogoPreset {
     Gentoo,
     Manjaro,
     Minimal,
+    Slackware,
+    Mageia,
 }
 
 impl LogoPreset {
@@ -172,6 +174,8 @@ impl LogoPreset {
             Self::Gentoo,
             Self::Manjaro,
             Self::Minimal,
+            Self::Slackware,
+            Self::Mageia,
             Self::None,
         ]
     }
@@ -204,6 +208,8 @@ impl Display for LogoPreset {
             Self::Gentoo => "gentoo",
             Self::Manjaro => "manjaro",
             Self::Minimal => "minimal",
+            Self::Slackware => "slackware",
+            Self::Mageia => "mageia",
         };
         f.write_str(value)
     }
@@ -244,6 +250,8 @@ impl FromStr for LogoPreset {
             "gentoo" => Ok(Self::Gentoo),
             "manjaro" => Ok(Self::Manjaro),
             "minimal" => Ok(Self::Minimal),
+            "slackware" => Ok(Self::Slackware),
+            "mageia" => Ok(Self::Mageia),
             _ => Err(format!("invalid logo preset: {value}")),
         }
     }
@@ -364,10 +372,10 @@ impl ModuleId {
             Self::HyprHealth,
             Self::HyprInstances,
             Self::HyprSplash,
-             Self::HyprActiveWindow,
-             Self::HyprCursor,
-             Self::HyprWorkspaceHistory,
-             Self::HyprWorkspaces,
+            Self::HyprActiveWindow,
+            Self::HyprCursor,
+            Self::HyprWorkspaceHistory,
+            Self::HyprWorkspaces,
             Self::HyprMonitors,
             Self::HyprConfig,
             Self::HyprRules,
