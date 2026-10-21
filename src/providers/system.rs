@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 use std::env;
 use std::ffi::CString;
 use std::fs;
@@ -186,6 +186,9 @@ pub struct ColorschemeInfo {
     pub fg_color: Option<String>,
 }
 
+/// A DRM GPU device: vendor, PCI device id, model, VRAM in MiB, sysfs path.
+type GpuDevice = (String, String, Option<String>, Option<u64>, PathBuf);
+
 /// Minimum CPU sampling window.
 ///
 /// `/proc/stat` counters advance in kernel tick steps, so a shorter window
@@ -317,7 +320,7 @@ impl SystemProvider {
     pub fn gpu_info(&self) -> Result<Vec<GpuInfo>, ProviderError> {
         let drm_path = Path::new("/sys/class/drm");
         let entries = fs::read_dir(drm_path).map_err(ProviderError::io)?;
-        let mut gpus = BTreeSet::new();
+        let mut gpus: BTreeSet<GpuDevice> = BTreeSet::new();
 
         for entry in entries {
             let entry = entry.map_err(ProviderError::io)?;
@@ -349,18 +352,21 @@ impl SystemProvider {
                 pci_device.as_ref().map(|device| device.vendor.as_str()),
             );
             let model = pci_device.map(|device| device.device).or(product_name);
-            let vram_mib = read_gpu_vram(&entry.path().join("device"));
-            gpus.insert((vendor, device_id, model, vram_mib));
+            let vram_mib = read_gpu_vram(&device_path);
+            gpus.insert((vendor, device_id, model, vram_mib, entry.path()));
         }
 
         if gpus.is_empty() {
             return Err(ProviderError::not_found("no DRM GPU devices found"));
         }
 
+        // Query the vendor tool once for the whole run instead of once per GPU.
+        let nvidia_usages = read_nvidia_gpu_usages();
+
         Ok(gpus
             .into_iter()
-            .map(|(vendor, device_id, model, vram_mib)| {
-                let usage_percent = read_gpu_usage(&vendor, &device_id);
+            .map(|(vendor, device_id, model, vram_mib, card_path)| {
+                let usage_percent = read_gpu_usage(&vendor, &card_path, &nvidia_usages);
                 GpuInfo {
                     vendor,
                     device_id,
@@ -963,71 +969,105 @@ fn starts_with_vendor(model: &str, vendor: &str) -> bool {
         .starts_with(&vendor.to_ascii_lowercase())
 }
 
-fn read_gpu_usage(vendor: &str, _device_id: &str) -> Option<f64> {
+fn read_gpu_usage(
+    vendor: &str,
+    card_path: &Path,
+    nvidia_usages: &HashMap<String, f64>,
+) -> Option<f64> {
     if vendor.eq_ignore_ascii_case("nvidia") {
-        return read_nvidia_gpu_usage();
+        return nvidia_gpu_usage(card_path, nvidia_usages);
     }
     if vendor.eq_ignore_ascii_case("amd") || vendor.eq_ignore_ascii_case("advanced micro devices") {
-        return read_amd_gpu_usage();
+        return read_amd_gpu_usage(card_path);
     }
     if vendor.eq_ignore_ascii_case("intel") {
-        return read_intel_gpu_usage();
+        return read_intel_gpu_usage(card_path);
     }
     None
 }
 
-fn read_nvidia_gpu_usage() -> Option<f64> {
-    let output = std::process::Command::new("nvidia-smi")
+/// Utilisation of a single NVIDIA device, matched by PCI bus id.
+fn nvidia_gpu_usage(card_path: &Path, nvidia_usages: &HashMap<String, f64>) -> Option<f64> {
+    match_nvidia_usage(drm_pci_bus_id(card_path).as_deref(), nvidia_usages)
+}
+
+/// Match a reported NVIDIA utilisation against a device.
+fn match_nvidia_usage(bus_id: Option<&str>, nvidia_usages: &HashMap<String, f64>) -> Option<f64> {
+    if let Some(bus_id) = bus_id
+        && let Some(usage) = nvidia_usages.get(bus_id)
+    {
+        return Some(*usage);
+    }
+
+    // Fall back to the only reported value when the bus ids cannot be matched,
+    // for example because nvidia-smi reports a different domain width.
+    match nvidia_usages.len() {
+        1 => nvidia_usages.values().next().copied(),
+        _ => None,
+    }
+}
+
+/// Utilisation of every NVIDIA device, keyed by PCI bus id.
+fn read_nvidia_gpu_usages() -> HashMap<String, f64> {
+    let Ok(output) = std::process::Command::new("nvidia-smi")
         .args([
-            "--query-gpu=utilization.gpu",
+            "--query-gpu=pci.bus_id,utilization.gpu",
             "--format=csv,noheader,nounits",
         ])
         .output()
-        .ok()?;
+    else {
+        return HashMap::new();
+    };
     if !output.status.success() {
-        return None;
+        return HashMap::new();
     }
+
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let first_line = stdout.lines().next()?.trim();
-    first_line.parse::<f64>().ok()
+    stdout
+        .lines()
+        .filter_map(|line| {
+            let mut fields = line.split(',');
+            let bus_id = fields.next()?.trim();
+            let usage = fields.next()?.trim().parse::<f64>().ok()?;
+            Some((normalize_pci_bus_id(bus_id), usage))
+        })
+        .collect()
 }
 
-fn read_amd_gpu_usage() -> Option<f64> {
-    let drm_path = Path::new("/sys/class/drm");
-    for entry in fs::read_dir(drm_path).ok()? {
-        let entry = entry.ok()?;
-        let name = entry.file_name();
-        let name_str = name.to_str()?;
-        if !name_str.starts_with("card") || name_str.contains('-') {
-            continue;
-        }
-        let busy_path = entry.path().join("device/gpu_busy_percent");
-        if let Ok(raw) = fs::read_to_string(&busy_path) {
-            if let Ok(percent) = raw.trim().parse::<f64>() {
-                return Some(percent);
-            }
-        }
+/// PCI bus id of a DRM device, for example `0000:01:00.0`.
+fn drm_pci_bus_id(card_path: &Path) -> Option<String> {
+    let resolved = fs::canonicalize(card_path.join("device")).ok()?;
+    let name = resolved.file_name()?.to_str()?;
+    name.contains(':').then(|| normalize_pci_bus_id(name))
+}
+
+/// Normalize a PCI bus id to the 8-digit domain form used by `nvidia-smi`.
+///
+/// Sysfs reports a 4-digit domain (`0000:01:00.0`) while `nvidia-smi` reports
+/// an 8-digit one (`00000000:01:00.0`).
+fn normalize_pci_bus_id(bus_id: &str) -> String {
+    let Some((domain, rest)) = bus_id.split_once(':') else {
+        return bus_id.to_string();
+    };
+
+    let mut domain = domain.to_string();
+    while domain.len() < 8 {
+        domain.insert(0, '0');
     }
-    None
+    format!("{domain}:{rest}")
 }
 
-fn read_intel_gpu_usage() -> Option<f64> {
-    let drm_path = Path::new("/sys/class/drm");
-    for entry in fs::read_dir(drm_path).ok()? {
-        let entry = entry.ok()?;
-        let name = entry.file_name();
-        let name_str = name.to_str()?;
-        if !name_str.starts_with("card") || name_str.contains('-') {
-            continue;
-        }
-        let busy_path = entry.path().join("device/gt_perf_status");
-        if let Ok(raw) = fs::read_to_string(&busy_path) {
-            let fields: Vec<&str> = raw.split_whitespace().collect();
-            if fields.len() >= 2 {
-                if let Ok(percent) = fields[1].trim_end_matches('%').parse::<f64>() {
-                    return Some(percent);
-                }
-            }
+fn read_amd_gpu_usage(card_path: &Path) -> Option<f64> {
+    let raw = fs::read_to_string(card_path.join("device/gpu_busy_percent")).ok()?;
+    raw.trim().parse::<f64>().ok()
+}
+
+fn read_intel_gpu_usage(card_path: &Path) -> Option<f64> {
+    let raw = fs::read_to_string(card_path.join("device/gt_perf_status")).ok()?;
+    let fields: Vec<&str> = raw.split_whitespace().collect();
+    if fields.len() >= 2 {
+        if let Ok(percent) = fields[1].trim_end_matches('%').parse::<f64>() {
+            return Some(percent);
         }
     }
     None
@@ -1397,12 +1437,14 @@ fn detect_pulse_default_sink() -> Option<String> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
     use std::time::Instant;
 
     use super::{
         CpuStat, GpuInfo, HostInfo, MIN_CPU_SAMPLE_WINDOW, SystemProvider, clean_dmi_value,
-        cpu_usage_percent, parse_cpu_model, parse_default_interface, parse_ip_addr_output,
-        parse_meminfo, parse_mountinfo_filesystem, parse_os_release, parse_pci_ids, parse_swapinfo,
+        cpu_usage_percent, match_nvidia_usage, normalize_pci_bus_id, parse_cpu_model,
+        parse_default_interface, parse_ip_addr_output, parse_meminfo, parse_mountinfo_filesystem,
+        parse_os_release, parse_pci_ids, parse_swapinfo,
     };
 
     #[test]
@@ -1584,5 +1626,37 @@ SwapFree:        7000000 kB
             .expect("cpu usage should be readable on linux");
         assert!(start.elapsed() >= MIN_CPU_SAMPLE_WINDOW);
         assert!((0.0..=100.0).contains(&usage.usage_percent));
+    }
+
+    #[test]
+    fn normalizes_pci_bus_id_domains() {
+        assert_eq!(normalize_pci_bus_id("0000:01:00.0"), "00000000:01:00.0");
+        assert_eq!(normalize_pci_bus_id("00000000:01:00.0"), "00000000:01:00.0");
+        assert_eq!(normalize_pci_bus_id("not-a-bus-id"), "not-a-bus-id");
+    }
+
+    #[test]
+    fn matches_nvidia_usage_by_bus_id() {
+        let mut usages = HashMap::new();
+        usages.insert("00000000:01:00.0".to_string(), 12.0);
+        usages.insert("00000000:02:00.0".to_string(), 34.0);
+
+        assert_eq!(
+            match_nvidia_usage(Some("00000000:02:00.0"), &usages),
+            Some(34.0)
+        );
+        assert_eq!(match_nvidia_usage(Some("00000000:03:00.0"), &usages), None);
+    }
+
+    #[test]
+    fn falls_back_to_the_only_nvidia_usage() {
+        let mut usages = HashMap::new();
+        usages.insert("00000000:01:00.0".to_string(), 12.0);
+
+        assert_eq!(
+            match_nvidia_usage(Some("00000000:09:00.0"), &usages),
+            Some(12.0)
+        );
+        assert_eq!(match_nvidia_usage(None, &usages), Some(12.0));
     }
 }
