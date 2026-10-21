@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use serde_json::json;
 
 use crate::config::ModuleConfig;
@@ -160,7 +158,7 @@ impl Module for CpuModule {
 
     fn run(&self, ctx: &ModuleContext<'_>, _config: &ModuleConfig) -> ModuleOutput {
         let model = ctx.providers.system.cpu_model();
-        let usage = ctx.providers.system.cpu_usage(Duration::from_millis(500));
+        let usage = ctx.providers.system.cpu_usage();
         match (model, usage) {
             (Ok(cpu), Ok(usage)) => {
                 let row = format!(

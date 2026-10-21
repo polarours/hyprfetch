@@ -3,6 +3,8 @@ use std::env;
 use std::ffi::CString;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
+use std::time::{Duration, Instant};
 
 use serde::Serialize;
 use thiserror::Error;
@@ -184,12 +186,28 @@ pub struct ColorschemeInfo {
     pub fg_color: Option<String>,
 }
 
-#[derive(Debug, Clone, Default)]
-pub struct SystemProvider;
+/// Minimum CPU sampling window.
+///
+/// `/proc/stat` counters advance in kernel tick steps, so a shorter window
+/// yields a noisy average.
+const MIN_CPU_SAMPLE_WINDOW: Duration = Duration::from_millis(50);
+
+#[derive(Debug, Clone)]
+pub struct SystemProvider {
+    cpu_baseline: OnceLock<Option<CpuBaseline>>,
+}
+
+impl Default for SystemProvider {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl SystemProvider {
     pub fn new() -> Self {
-        Self
+        let cpu_baseline = OnceLock::new();
+        let _ = cpu_baseline.set(read_cpu_baseline());
+        Self { cpu_baseline }
     }
 
     pub fn os_info(&self) -> Result<OsInfo, ProviderError> {
@@ -259,11 +277,26 @@ impl SystemProvider {
         parse_cpu_model(&raw)
     }
 
-    pub fn cpu_usage(&self, interval: std::time::Duration) -> Result<CpuUsageInfo, ProviderError> {
-        let stats1 = read_cpu_stat()?;
-        std::thread::sleep(interval);
-        let stats2 = read_cpu_stat()?;
-        let usage = cpu_usage_percent(&stats1, &stats2);
+    /// Average CPU utilisation over the window that opened when this provider
+    /// was created.
+    ///
+    /// The baseline is captured up front, so the sample window already covers
+    /// the rest of the collection work and no dedicated sleep is needed. The
+    /// window is only extended when it is too short to give a stable average.
+    pub fn cpu_usage(&self) -> Result<CpuUsageInfo, ProviderError> {
+        let baseline = self
+            .cpu_baseline
+            .get()
+            .and_then(Option::as_ref)
+            .ok_or_else(|| ProviderError::not_found("cpu baseline unavailable"))?;
+
+        let elapsed = baseline.taken_at.elapsed();
+        if elapsed < MIN_CPU_SAMPLE_WINDOW {
+            std::thread::sleep(MIN_CPU_SAMPLE_WINDOW - elapsed);
+        }
+
+        let current = read_cpu_stat()?;
+        let usage = cpu_usage_percent(&baseline.stat, &current);
         let num_logical_cpus = num_logical_cpus()?;
         Ok(CpuUsageInfo {
             usage_percent: usage,
@@ -441,6 +474,20 @@ struct CpuStat {
     irq: u64,
     softirq: u64,
     steal: u64,
+}
+
+/// A `/proc/stat` snapshot taken when the provider was created.
+#[derive(Debug, Clone)]
+struct CpuBaseline {
+    taken_at: Instant,
+    stat: CpuStat,
+}
+
+fn read_cpu_baseline() -> Option<CpuBaseline> {
+    Some(CpuBaseline {
+        taken_at: Instant::now(),
+        stat: read_cpu_stat().ok()?,
+    })
 }
 
 fn read_cpu_stat() -> Result<CpuStat, ProviderError> {
@@ -1350,10 +1397,12 @@ fn detect_pulse_default_sink() -> Option<String> {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Instant;
+
     use super::{
-        CpuStat, GpuInfo, HostInfo, clean_dmi_value, cpu_usage_percent, parse_cpu_model,
-        parse_default_interface, parse_ip_addr_output, parse_meminfo, parse_mountinfo_filesystem,
-        parse_os_release, parse_pci_ids, parse_swapinfo,
+        CpuStat, GpuInfo, HostInfo, MIN_CPU_SAMPLE_WINDOW, SystemProvider, clean_dmi_value,
+        cpu_usage_percent, parse_cpu_model, parse_default_interface, parse_ip_addr_output,
+        parse_meminfo, parse_mountinfo_filesystem, parse_os_release, parse_pci_ids, parse_swapinfo,
     };
 
     #[test]
@@ -1524,5 +1573,16 @@ SwapFree:        7000000 kB
         let stat = CpuStat::default();
         let usage = cpu_usage_percent(&stat, &stat);
         assert_eq!(usage, 0.0);
+    }
+
+    #[test]
+    fn cpu_usage_covers_at_least_the_minimum_window() {
+        let provider = SystemProvider::new();
+        let start = Instant::now();
+        let usage = provider
+            .cpu_usage()
+            .expect("cpu usage should be readable on linux");
+        assert!(start.elapsed() >= MIN_CPU_SAMPLE_WINDOW);
+        assert!((0.0..=100.0).contains(&usage.usage_percent));
     }
 }
