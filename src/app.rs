@@ -12,6 +12,7 @@ use crate::modules::{ModuleContext, build_module};
 use crate::plugins::run_plugin;
 use crate::providers::Providers;
 use crate::render;
+use crate::util;
 
 #[derive(Debug, Default)]
 pub struct App;
@@ -61,16 +62,22 @@ impl App {
 
     pub fn run_watch(&self, cli: CliArgs) -> Result<()> {
         let interval = Duration::from_secs(cli.watch_interval);
+        let redraw = util::stdout_is_tty();
+        let mut first = true;
+
         loop {
-            let output = self.run_cli(cli.clone())?;
+            if redraw && !first {
+                // Move the cursor home and clear the rest of the screen so each
+                // refresh replaces the previous one instead of scrolling.
+                print!("\x1b[H\x1b[J");
+            }
+            first = false;
+
+            let output = self.run(cli.clone())?;
             print!("{output}");
             io::stdout().flush().ok();
             thread::sleep(interval);
         }
-    }
-
-    fn run_cli(&self, cli: CliArgs) -> Result<String> {
-        self.run(cli)
     }
 }
 

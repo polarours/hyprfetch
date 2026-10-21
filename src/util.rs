@@ -79,6 +79,22 @@ pub fn truncate_visible(value: &str, max_chars: usize) -> String {
     output
 }
 
+/// Whether standard output is attached to a terminal.
+///
+/// Interactive-only output such as screen redraws must be skipped when the
+/// output is piped or redirected to a file.
+pub fn stdout_is_tty() -> bool {
+    #[cfg(unix)]
+    {
+        // SAFETY: `isatty` only inspects the file descriptor and has no side effects.
+        unsafe { libc::isatty(libc::STDOUT_FILENO) == 1 }
+    }
+    #[cfg(not(unix))]
+    {
+        false
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{format_refresh_hz, humanize_kib, humanize_uptime, truncate_visible};
