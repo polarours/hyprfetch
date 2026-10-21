@@ -448,4 +448,4 @@ Before submitting to the AUR, confirm the GitHub repository URL in `Cargo.toml` 
 
 - richer Hyprland ecosystem detection
 - deeper workspace history and input detail modules
-- additional distro logos
+- more artwork for the remaining distributions in `assets/logos/`

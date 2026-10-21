@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Disk module**: reports several mount points at once, configured with `mounts = ["/", "/home"]`
 - **Input devices**: the caps and num lock state of the main keyboard, mentioned in the summary while engaged
 - **Output modes**: `--watch` and `--watch-interval` for continuous refresh
-- **Distro logos**: the catalogue grew from 23 to 124 presets, covering the Arch, Fedora, Debian, Ubuntu, SUSE and Gentoo families plus their derivatives, the BSDs and several appliance distributions
+- **Distro logos**: the catalogue grew from 23 to 213 presets, covering the Arch, Fedora, Debian, Ubuntu, SUSE and Gentoo families plus their derivatives, the BSDs and several appliance distributions, with artwork for Windows 95, 8, 11 and 2025
 - **Logo detection**: `VARIANT` is read from `os-release`, so Ubuntu flavours and Fedora immutable variants resolve to their own logo
 
 ### Fixed
