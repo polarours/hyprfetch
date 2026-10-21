@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - README module and logo lists now match the shipped catalog
+- The Hyprland module directory is split per domain: session, window, workspaces, monitors, rice, input, binds, layers, config, rules, shortcuts, layouts and ecosystem
 
 ## [0.2.0] - 2025-06-23
 

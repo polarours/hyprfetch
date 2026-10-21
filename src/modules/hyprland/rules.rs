@@ -1,144 +1,109 @@
-use crate::providers::hyprland::HyprWorkspace;
-use crate::providers::theme::EcosystemInfo;
+use serde_json::json;
+
+use crate::config::ModuleConfig;
+use crate::model::{ModuleId, ModuleOutput, OutputRow};
+use crate::modules::{Module, ModuleContext};
 
 use super::count_label;
 
-pub fn summarize_workspaces(workspaces: &[HyprWorkspace], active_id: Option<i32>) -> String {
-    workspaces
-        .iter()
-        .map(|workspace| workspace_compact_token(workspace, active_id))
-        .collect::<Vec<_>>()
-        .join(" ")
-}
-
-pub fn workspace_label(workspace: &HyprWorkspace, active_id: Option<i32>) -> String {
-    let base = workspace_name(workspace);
-    if workspace.id == active_id {
-        format!("*{base}")
-    } else {
-        base
-    }
-}
-
-pub fn workspace_details(workspace: &HyprWorkspace) -> String {
-    let mut parts = Vec::new();
-
-    if let Some(monitor) = workspace
-        .monitor
-        .as_deref()
-        .filter(|monitor| !monitor.is_empty())
-    {
-        parts.push(monitor.to_string());
+pub struct HyprRulesModule;
+impl Module for HyprRulesModule {
+    fn id(&self) -> ModuleId {
+        ModuleId::HyprRules
     }
 
-    match workspace.windows {
-        Some(0) => parts.push("empty".to_string()),
-        Some(windows) => {
-            let label = if windows == 1 { "window" } else { "windows" };
-            parts.push(format!("{windows} {label}"));
+    fn run(&self, ctx: &ModuleContext<'_>, config: &ModuleConfig) -> ModuleOutput {
+        match ctx.providers.hyprland.workspace_rules() {
+            Ok(raw) => {
+                let rules = collect_workspace_rules(&raw);
+                let compact = config.option_bool("compact", true);
+                let rows = if compact {
+                    vec![OutputRow::new("Rules", summarize_workspace_rules(&rules))]
+                } else {
+                    workspace_rule_rows(&rules)
+                };
+
+                ModuleOutput::ok(self.id(), rows, json!({ "raw": raw, "rules": rules }))
+            }
+            Err(error) => ModuleOutput::unavailable(self.id(), error.to_string()),
         }
-        None => {}
-    }
-
-    if workspace_is_special(workspace) {
-        parts.push("special".to_string());
-    }
-
-    if workspace.has_fullscreen.unwrap_or(false) {
-        parts.push("fullscreen".to_string());
-    }
-
-    if parts.is_empty() {
-        return "active".to_string();
-    }
-
-    parts.join(", ")
-}
-
-pub fn workspace_sort_key(workspace: &HyprWorkspace) -> (i32, String) {
-    let order = match workspace.id {
-        Some(id) if id >= 0 => id,
-        _ => i32::MAX,
-    };
-    (order, workspace.display_name())
-}
-
-pub fn workspace_compact_token(workspace: &HyprWorkspace, active_id: Option<i32>) -> String {
-    let mut token = workspace_label(workspace, active_id);
-
-    if workspace.has_fullscreen.unwrap_or(false) {
-        token.push('!');
-    }
-    if let Some(windows) = workspace.windows {
-        token.push(':');
-        token.push_str(&windows.to_string());
-    }
-
-    token
-}
-
-pub fn workspace_name(workspace: &HyprWorkspace) -> String {
-    let display = workspace.display_name();
-    if workspace_is_special(workspace) {
-        let name = display.strip_prefix("special:").unwrap_or(display.as_str());
-        format!("[{name}]")
-    } else {
-        display
     }
 }
 
-pub fn workspace_is_special(workspace: &HyprWorkspace) -> bool {
-    workspace.id.map(|id| id < 0).unwrap_or(false)
-        || workspace
-            .name
-            .as_deref()
-            .map(|name| name.starts_with("special:"))
-            .unwrap_or(false)
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-pub fn prepare_ecosystem_for_display(
-    mut ecosystem: EcosystemInfo,
-    include_wallpaper: bool,
-) -> EcosystemInfo {
-    if !include_wallpaper {
-        ecosystem.wallpaper = None;
-    }
-    ecosystem
-}
+    #[test]
+    fn summarizes_hypr_workspace_rules() {
+        let raw = serde_json::json!([
+            {
+                "workspaceString": "1",
+                "monitor": "eDP-1",
+                "default": true,
+                "persistent": true
+            },
+            {
+                "workspaceString": "special:music",
+                "monitor": "DP-1"
+            },
+            {
+                "workspaceString": "name:web",
+                "gapsIn": [5, 5, 5, 5]
+            }
+        ]);
 
-pub fn summarize_ecosystem(ecosystem: &EcosystemInfo) -> String {
-    let mut parts = Vec::new();
-    if let Some((label, version)) = &ecosystem.wallpaper {
-        parts.push(format!("wall:{}", eco_display(label, version)));
+        let rules = collect_workspace_rules(&raw);
+        assert_eq!(
+            rules,
+            vec![
+                WorkspaceRuleSummary {
+                    target: Some("1".to_string()),
+                    monitor: Some("eDP-1".to_string()),
+                    is_default: true,
+                    persistent: true,
+                    has_gaps: false,
+                },
+                WorkspaceRuleSummary {
+                    target: Some("special:music".to_string()),
+                    monitor: Some("DP-1".to_string()),
+                    is_default: false,
+                    persistent: false,
+                    has_gaps: false,
+                },
+                WorkspaceRuleSummary {
+                    target: Some("name:web".to_string()),
+                    monitor: None,
+                    is_default: false,
+                    persistent: false,
+                    has_gaps: true,
+                },
+            ]
+        );
+        assert_eq!(
+            summarize_workspace_rules(&rules),
+            "3 rules, targets:1/name:web/special:music, monitors:DP-1/eDP-1, 1 default, 1 persistent, gaps:1"
+        );
+        assert_eq!(
+            workspace_rule_rows(&rules),
+            vec![
+                OutputRow::new("Workspace Rules", "3 rules"),
+                OutputRow::new("Rule Targets", "1, name:web, special:music"),
+                OutputRow::new("Rule Monitors", "DP-1, eDP-1"),
+                OutputRow::new("Rule Flags", "default:1 persistent:1 gaps:1"),
+            ]
+        );
     }
-    if let Some((label, version)) = &ecosystem.bar {
-        parts.push(format!("bar:{}", eco_display(label, version)));
-    }
-    if let Some((label, version)) = &ecosystem.launcher {
-        parts.push(format!("launch:{}", eco_display(label, version)));
-    }
-    if let Some((label, version)) = &ecosystem.notifications {
-        parts.push(format!("notify:{}", eco_display(label, version)));
-    }
-    if let Some((label, version)) = &ecosystem.clipboard {
-        parts.push(format!("clip:{}", eco_display(label, version)));
-    }
-    if let Some((label, version)) = &ecosystem.screenshot {
-        parts.push(format!("shot:{}", eco_display(label, version)));
-    }
-    if let Some((label, version)) = &ecosystem.idle {
-        parts.push(format!("idle:{}", eco_display(label, version)));
-    }
-    if let Some((label, version)) = &ecosystem.lock {
-        parts.push(format!("lock:{}", eco_display(label, version)));
-    }
-    parts.join(" ")
-}
 
-fn eco_display(label: &str, version: &Option<String>) -> String {
-    match version {
-        Some(v) if !v.is_empty() => format!("{label} ({v})"),
-        _ => label.to_string(),
+    #[test]
+    fn handles_empty_hypr_workspace_rules() {
+        let rules = collect_workspace_rules(&serde_json::json!([]));
+        assert!(rules.is_empty());
+        assert_eq!(summarize_workspace_rules(&rules), "0 rules");
+        assert_eq!(
+            workspace_rule_rows(&rules),
+            vec![OutputRow::new("Workspace Rules", "0 rules")]
+        );
     }
 }
 
@@ -162,13 +127,13 @@ pub fn summarize_workspace_rules(rules: &[WorkspaceRuleSummary]) -> String {
     if !targets.is_empty() {
         parts.push(format!(
             "targets:{}",
-            super::summarize_namespaces(&targets, 4, "/")
+            super::layers::summarize_namespaces(&targets, 4, "/")
         ));
     }
     if !monitors.is_empty() {
         parts.push(format!(
             "monitors:{}",
-            super::summarize_namespaces(&monitors, 3, "/")
+            super::layers::summarize_namespaces(&monitors, 3, "/")
         ));
     }
     if default_count > 0 {
@@ -196,13 +161,13 @@ pub fn workspace_rule_rows(rules: &[WorkspaceRuleSummary]) -> Vec<crate::model::
     if !targets.is_empty() {
         rows.push(crate::model::OutputRow::new(
             "Rule Targets",
-            super::summarize_namespaces(&targets, 8, ", "),
+            super::layers::summarize_namespaces(&targets, 8, ", "),
         ));
     }
     if !monitors.is_empty() {
         rows.push(crate::model::OutputRow::new(
             "Rule Monitors",
-            super::summarize_namespaces(&monitors, 6, ", "),
+            super::layers::summarize_namespaces(&monitors, 6, ", "),
         ));
     }
     if !flags.is_empty() {
@@ -328,13 +293,13 @@ fn workspace_rule_flags(rules: &[WorkspaceRuleSummary]) -> String {
     parts.join(" ")
 }
 
-pub fn first_object_value_string(
+pub(super) fn first_object_value_string(
     object: &serde_json::Map<String, serde_json::Value>,
     keys: &[&str],
 ) -> Option<String> {
     keys.iter()
         .filter_map(|key| object.get(*key).and_then(value_to_rule_string))
-        .map(|value| super::clean_config_error_text(&value))
+        .map(|value| super::config::clean_config_error_text(&value))
         .find(|value| !value.is_empty())
 }
 
@@ -342,7 +307,7 @@ fn value_to_rule_string(value: &serde_json::Value) -> Option<String> {
     match value {
         serde_json::Value::String(value) => Some(value.clone()),
         serde_json::Value::Number(value) => Some(value.to_string()),
-        serde_json::Value::Bool(value) => Some(super::bool_label(*value).to_string()),
+        serde_json::Value::Bool(value) => Some(super::rice::bool_label(*value).to_string()),
         serde_json::Value::Object(object) => first_object_value_string(
             object,
             &["name", "id", "workspaceString", "workspace", "value"],
@@ -351,12 +316,12 @@ fn value_to_rule_string(value: &serde_json::Value) -> Option<String> {
     }
 }
 
-pub fn first_object_bool(
+pub(super) fn first_object_bool(
     object: &serde_json::Map<String, serde_json::Value>,
     keys: &[&str],
 ) -> bool {
     keys.iter()
-        .find_map(|key| object.get(*key).and_then(super::json_value_bool))
+        .find_map(|key| object.get(*key).and_then(super::rice::json_value_bool))
         .unwrap_or(false)
 }
 
