@@ -6,10 +6,10 @@ Unlike generic fetch tools, it treats Hyprland runtime data as first-class outpu
 
 ## Current MVP
 
-- Basic system modules: OS, host, kernel, uptime, packages, shell, terminal, CPU (with realtime usage), GPU (with VRAM and usage), memory, swap, disk, battery, locale, network (with WiFi SSID/signal), audio, temperature, datetime
+- Basic system modules: OS, host, kernel, uptime, packages, shell, terminal, CPU (with realtime usage), GPU (with VRAM and usage), memory, swap, disk (with several mount points), battery, locale, network (with WiFi SSID/signal), audio, temperature, datetime
 - Hyprland modules: version, health summary, runtime instance summary, current splash, active workspace, focused monitor and session summary, workspace history, workspace list with active/special/fullscreen state, active window state, cursor position, monitor summary, config health, workspace rules, input summary, keybind summary, global shortcut summary, layout summary, layer-shell surface summary, hypr-rice (layout, gaps, border, rounding, blur, animations)
 - Rice modules: GTK theme, icon theme, cursor theme, font, wallpaper backend
-- Ecosystem detection: wallpaper, bar, launcher, notification, clipboard, screenshot, idle, and lock daemons (with version info) when present
+- Ecosystem detection: wallpaper, bar, launcher, notification, clipboard, screenshot, idle, lock, portal, polkit and tray daemons (with version info) when present
 - Output modes: styled split layout, plain mode, minimal mode, JSON mode, diagnostics mode, configurable module order, width-aware layout fallback for narrow terminals, share preset for rice screenshots, `--watch` continuous refresh mode
 - Customization: TOML-driven module order, per-module options, user-defined display labels, and command plugins
 - Palettes: hypr, mono, catppuccin, dracula
@@ -419,7 +419,7 @@ its own artwork instead of a generic fallback:
 - **Platform and generic**: `hypr`, `linux`, `windows`, `windows-95`, `windows-8`,
   `windows-11`, `windows-2025`, `macos`
 
-Two extra presets are also available: `minimal`, which renders the `hyprfetch` wordmark instead of distro art, and `none`, which hides the logo entirely. Run `hyprfetch --list-logos` for the authoritative list of all 213 presets.
+Two extra presets are also available: `minimal`, which renders the `hyprfetch` wordmark instead of distro art, and `none`, which hides the logo entirely. Run `hyprfetch --list-logos` for the authoritative list of all 213 presets plus `auto`.
 
 Auto detection follows the same basic idea that makes `fastfetch` strong here: check `VARIANT`, then `ID`, then `NAME`, then `ID_LIKE`, and only then fall back to the platform family logo. That means unsupported derivatives still land on a sensible family logo in many cases instead of dropping straight to a generic fallback.
 
