@@ -34,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The Hyprland module directory is split per domain: session, window, workspaces, monitors, rice, input, binds, layers, config, rules, shortcuts, layouts and ecosystem
 - The logo catalogue is generated from a single table, so adding a logo no longer needs changes in several places
 - Ecosystem versions are read in parallel instead of one backend after the other, and each probe is given up on after 500ms
-- Selecting modules with `--modules` keeps the options configured for them instead of discarding them
+- Selecting modules with `--modules` or `--share` keeps the options configured for them instead of discarding them
 
 ## [0.2.0] - 2025-06-23
 

@@ -436,6 +436,21 @@ fn validate(config: &AppConfig) -> Result<()> {
     Ok(())
 }
 
+/// The configuration of a module, keeping the options the user configured
+/// for it. Selecting a module narrows the output, it does not reset the
+/// configuration.
+fn configured_module(configured: &[ModuleConfig], id: ModuleId) -> ModuleConfig {
+    configured
+        .iter()
+        .find(|module| module.name == id)
+        .cloned()
+        .map(|mut module| {
+            module.enabled = true;
+            module
+        })
+        .unwrap_or_else(|| ModuleConfig::from(id))
+}
+
 pub fn merge(cli: &CliArgs, config: AppConfig) -> RuntimeConfig {
     let mut appearance = config.appearance.clone();
     if cli.share {
@@ -466,26 +481,13 @@ pub fn merge(cli: &CliArgs, config: AppConfig) -> RuntimeConfig {
         SHARE_PRESET_MODULES
             .iter()
             .copied()
-            .map(ModuleConfig::from)
+            .map(|id| configured_module(&config.modules, id))
             .collect()
     } else if let Some(overrides) = &cli.modules {
         overrides
             .iter()
             .copied()
-            .map(|id| {
-                // Selecting a module on the command line narrows the output,
-                // it does not discard the options configured for it.
-                config
-                    .modules
-                    .iter()
-                    .find(|module| module.name == id)
-                    .cloned()
-                    .map(|mut module| {
-                        module.enabled = true;
-                        module
-                    })
-                    .unwrap_or_else(|| ModuleConfig::from(id))
-            })
+            .map(|id| configured_module(&config.modules, id))
             .collect()
     } else {
         config.modules
@@ -745,5 +747,54 @@ name = "hyprland"
 
         assert_eq!(runtime.modules.len(), 1);
         assert!(runtime.modules[0].enabled);
+    }
+
+    #[test]
+    fn the_share_preset_keeps_the_configured_options() {
+        let mut disk = ModuleConfig::from(ModuleId::Disk);
+        disk.options.insert(
+            "mounts".to_string(),
+            toml::Value::Array(vec![toml::Value::String("/home".to_string())]),
+        );
+
+        let cli = CliArgs {
+            config: None,
+            init_config: false,
+            print_config: false,
+            no_config: false,
+            plain: false,
+            share: true,
+            animated: false,
+            watch: false,
+            watch_interval: 1,
+            color: ColorMode::Auto,
+            modules: None,
+            theme: None,
+            style: None,
+            logo: None,
+            json: false,
+            diagnostics: false,
+            list_logos: false,
+            list_modules: false,
+            list_themes: false,
+        };
+
+        let runtime = merge(
+            &cli,
+            AppConfig {
+                version: 1,
+                appearance: AppearanceConfig::default(),
+                logo: super::LogoConfig::default(),
+                modules: vec![disk],
+                plugins: Vec::new(),
+            },
+        );
+
+        let disk = runtime
+            .modules
+            .iter()
+            .find(|module| module.name == ModuleId::Disk)
+            .expect("the share preset includes the disk module");
+        assert_eq!(disk.option_string_list("mounts"), vec!["/home".to_string()]);
     }
 }
