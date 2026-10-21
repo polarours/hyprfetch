@@ -108,12 +108,33 @@ To add a new system module:
 
 ## Adding New Logos
 
+The logo catalogue is a single table in `src/logo.rs`. Every entry generates the
+`LogoPreset` variant, its `Display`/`FromStr` implementation and the logo definition, so
+one entry is all that is needed.
+
 To add a new distro logo:
 
 1. Create a text file in `assets/logos/` (use existing logos as reference)
-2. Add the preset to `LogoPreset` enum in `src/model.rs`
-3. Add aliases in `src/logo.rs`
-4. Add logo definition in `logo::definitions()`
+2. Add one entry to the `logo_catalog!` table in `src/logo.rs`:
+
+   ```rust
+   Linuxmint => "linuxmint", ["linuxmint", "linux mint"],
+       include_str!("../assets/logos/linuxmint.txt"), Green, Cyan, White;
+   ```
+
+   The fields are the enum variant, the selectable name, the os-release values that
+   select it, the artwork and the three tones.
+
+3. Add the preset to the logo list in `README.md`
+
+Notes:
+
+- Aliases are matched case-insensitively and ignore non-alphanumeric characters, so
+  `linux mint` and `linuxmint` are the same alias. Keep them unique across the table; the
+  `aliases_are_unique_across_the_catalogue` test enforces this.
+- Every preset name must be parseable, so the name is always accepted by `--logo`.
+- Run `cargo test` after adding an entry. The catalogue tests check that every preset has
+  artwork and that names round-trip.
 
 ## Reporting Issues
 

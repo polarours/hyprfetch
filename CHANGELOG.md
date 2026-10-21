@@ -13,18 +13,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Hyprland modules**: hypr-workspace-history (last foreign focus)
 - **Ecosystem detection**: version info for detected daemons
 - **Output modes**: `--watch` and `--watch-interval` for continuous refresh
-- **Distro logos**: Slackware, Mageia (23 curated presets)
+- **Distro logos**: the catalogue grew from 23 to 124 presets, covering the Arch, Fedora, Debian, Ubuntu, SUSE and Gentoo families plus their derivatives, the BSDs and several appliance distributions
+- **Logo detection**: `VARIANT` is read from `os-release`, so Ubuntu flavours and Fedora immutable variants resolve to their own logo
 
 ### Fixed
 
 - CPU utilisation no longer blocks the run for 500ms; it is sampled across the collection window instead
 - GPU utilisation is queried once per run and matched to each device by PCI bus id, so multi-GPU systems report per-GPU values
 - `--watch` redraws in place on a terminal instead of scrolling past
+- `--logo pop` selected the Ubuntu logo, and Linux Mint, Rocky, Kali and other derivatives fell back to the logo of the distribution they derive from
 
 ### Changed
 
 - README module and logo lists now match the shipped catalog
 - The Hyprland module directory is split per domain: session, window, workspaces, monitors, rice, input, binds, layers, config, rules, shortcuts, layouts and ecosystem
+- The logo catalogue is generated from a single table, so adding a logo no longer needs changes in several places
 
 ## [0.2.0] - 2025-06-23
 
