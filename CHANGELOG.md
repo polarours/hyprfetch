@@ -5,6 +5,26 @@ All notable changes to hyprfetch will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **System modules**: realtime CPU utilisation, GPU utilisation for NVIDIA, AMD and Intel
+- **Hyprland modules**: hypr-workspace-history (last foreign focus)
+- **Ecosystem detection**: version info for detected daemons
+- **Output modes**: `--watch` and `--watch-interval` for continuous refresh
+- **Distro logos**: Slackware, Mageia (23 curated presets)
+
+### Fixed
+
+- CPU utilisation no longer blocks the run for 500ms; it is sampled across the collection window instead
+- GPU utilisation is queried once per run and matched to each device by PCI bus id, so multi-GPU systems report per-GPU values
+- `--watch` redraws in place on a terminal instead of scrolling past
+
+### Changed
+
+- README module and logo lists now match the shipped catalog
+
 ## [0.2.0] - 2025-06-23
 
 ### Added

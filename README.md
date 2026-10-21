@@ -6,14 +6,14 @@ Unlike generic fetch tools, it treats Hyprland runtime data as first-class outpu
 
 ## Current MVP
 
-- Basic system modules: OS, host, kernel, uptime, packages, shell, terminal, CPU, GPU (with VRAM), memory, swap, disk, battery, locale, network (with WiFi SSID/signal), audio, temperature, datetime
-- Hyprland modules: version, health summary, runtime instance summary, current splash, active workspace, focused monitor and session summary, workspace list with active/special/fullscreen state, active window state, cursor position, monitor summary, config health, workspace rules, input summary, keybind summary, global shortcut summary, layout summary, layer-shell surface summary, hypr-rice (layout, gaps, border, rounding, blur, animations)
+- Basic system modules: OS, host, kernel, uptime, packages, shell, terminal, CPU (with realtime usage), GPU (with VRAM and usage), memory, swap, disk, battery, locale, network (with WiFi SSID/signal), audio, temperature, datetime
+- Hyprland modules: version, health summary, runtime instance summary, current splash, active workspace, focused monitor and session summary, workspace history, workspace list with active/special/fullscreen state, active window state, cursor position, monitor summary, config health, workspace rules, input summary, keybind summary, global shortcut summary, layout summary, layer-shell surface summary, hypr-rice (layout, gaps, border, rounding, blur, animations)
 - Rice modules: GTK theme, icon theme, cursor theme, font, wallpaper backend
-- Ecosystem detection: wallpaper, bar, launcher, notification, clipboard, screenshot, idle, and lock daemons when present
-- Output modes: styled split layout, plain mode, minimal mode, JSON mode, diagnostics mode, configurable module order, width-aware layout fallback for narrow terminals, share preset for rice screenshots
+- Ecosystem detection: wallpaper, bar, launcher, notification, clipboard, screenshot, idle, and lock daemons (with version info) when present
+- Output modes: styled split layout, plain mode, minimal mode, JSON mode, diagnostics mode, configurable module order, width-aware layout fallback for narrow terminals, share preset for rice screenshots, `--watch` continuous refresh mode
 - Customization: TOML-driven module order, per-module options, user-defined display labels, and command plugins
 - Palettes: hypr, mono, catppuccin, dracula
-- Logo system: bundled distro-aware text logos stored in `assets/logos/`, with `os-release` auto detection, family fallback, and explicit override support (21 curated presets)
+- Logo system: bundled distro-aware text logos stored in `assets/logos/`, with `os-release` auto detection, family fallback, and explicit override support (23 curated presets)
 - Package managers: pacman, dpkg, rpm, nix, homebrew
 - Config: `~/.config/hyprfetch/config.toml` or `$XDG_CONFIG_HOME/hyprfetch/config.toml`
 
@@ -70,6 +70,12 @@ Minimal style (key:value only, no header or color bars):
 
 ```bash
 hyprfetch --style minimal
+```
+
+Continuous refresh (redraws in place when attached to a terminal):
+
+```bash
+hyprfetch --watch --watch-interval 1
 ```
 
 Create a starter config:
@@ -312,6 +318,7 @@ timeout_ms = 1000
 - `temperature`
 - `audio`
 - `datetime`
+- `colorscheme`
 - `hyprland`
 - `hypr-health`
 - `hypr-instances`
@@ -320,6 +327,7 @@ timeout_ms = 1000
 - `hypr-monitors`
 - `hypr-active-window`
 - `hypr-cursor`
+- `hypr-workspace-history`
 - `hypr-rice`
 - `hypr-config`
 - `hypr-rules`
@@ -337,6 +345,8 @@ timeout_ms = 1000
 - `/etc/os-release`
 - `/proc`
 - `/sys`
+- `/proc/stat` for realtime CPU utilisation, sampled across the collection window
+- `nvidia-smi` for NVIDIA GPU utilisation, `/sys/class/drm/*/device/gpu_busy_percent` and `gt_perf_status` for AMD and Intel
 - `/var/lib/pacman/local`
 - `/var/lib/dpkg/status`
 - `/sys/class/power_supply`
@@ -361,6 +371,10 @@ The binary stays usable outside Hyprland. Hyprland-specific modules degrade to u
 - `windows`
 - `macos`
 - `arch`
+- `garuda`
+- `nobara`
+- `artix`
+- `asahi`
 - `cachyos`
 - `endeavouros`
 - `fedora`
@@ -373,6 +387,10 @@ The binary stays usable outside Hyprland. Hyprland-specific modules degrade to u
 - `pop`
 - `gentoo`
 - `manjaro`
+- `slackware`
+- `mageia`
+
+Two extra presets are also available: `minimal`, which renders the `hyprfetch` wordmark instead of distro art, and `none`, which hides the logo entirely.
 
 Auto detection follows the same basic idea that makes `fastfetch` strong here: check `ID`, then `NAME`, then `ID_LIKE`, and only then fall back to the platform family logo. That means unsupported derivatives still land on a sensible family logo in many cases instead of dropping straight to a generic fallback.
 
