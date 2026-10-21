@@ -13,7 +13,7 @@ Unlike generic fetch tools, it treats Hyprland runtime data as first-class outpu
 - Output modes: styled split layout, plain mode, minimal mode, JSON mode, diagnostics mode, configurable module order, width-aware layout fallback for narrow terminals, share preset for rice screenshots, `--watch` continuous refresh mode
 - Customization: TOML-driven module order, per-module options, user-defined display labels, and command plugins
 - Palettes: hypr, mono, catppuccin, dracula
-- Logo system: bundled distro-aware text logos stored in `assets/logos/`, with `os-release` auto detection, family fallback, and explicit override support (128 curated presets)
+- Logo system: bundled distro-aware text logos stored in `assets/logos/`, with `os-release` auto detection, family fallback, and explicit override support (213 built-in presets)
 - Package managers: pacman, dpkg, rpm, nix, homebrew
 - Config: `~/.config/hyprfetch/config.toml` or `$XDG_CONFIG_HOME/hyprfetch/config.toml`
 
@@ -382,18 +382,44 @@ The binary stays usable outside Hyprland. Hyprland-specific modules degrade to u
 families and their well known derivatives, so a machine running a niche distro lands on
 its own artwork instead of a generic fallback:
 
-- **Arch family**: `arch`, `arcolinux`, `archcraft`, `archlabs`, `blackarch`, `hyperbola`, `steamos`, `steamdeck`, `chimera`, `biglinux`, `manjaro`, `garuda`, `cachyos`, `endeavouros`, `artix`, `asahi`
-- **Fedora and RHEL family**: `fedora`, `rocky`, `almalinux`, `centos`, `oracle`, `silverblue`, `kinoite`, `sericea`, `nobara`
-- **Debian family**: `debian`, `devuan`, `kali`, `parrot`, `raspbian`, `mx`, `antix`, `dietpi`, `deepin`, `q4os`, `proxmox`, `truenas`, `emmabuntus`, `lilidog`, `locos`
-- **Ubuntu family**: `ubuntu`, `pop`, `elementary`, `zorin`, `linuxmint`, `tuxedo`, `vanilla`, `peppermint`, `linuxlite`, `lliurex`, plus the `kubuntu`, `xubuntu`, `lubuntu`, `ubuntu-studio`, `ubuntu-cinnamon`, `ubuntu-budgie`, `ubuntu-mate`, `ubuntu-unity`, `ubuntu-kylin`, `ubuntu-sway`, `ubuntu-touch` and `ubuntu-gnome` flavours
-- **SUSE family**: `opensuse`, `opensuse-leap`, `opensuse-tumbleweed`, `opensuse-microos`, `opensuse-slowroll`
+- **Arch family**: `arch`, `arcolinux`, `archcraft`, `archlabs`, `archbox`, `archstrike`,
+  `arkane`, `arselinux`, `blackarch`, `hyperbola`, `steamos`, `steamdeck`, `chimera`,
+  `biglinux`, `manjaro`, `garuda`, `cachyos`, `endeavouros`, `artix`, `asahi`, `crux`,
+  `aoscos`, `astos`, `aster`, `blackpanther`, `blag`, `bunsenlabs`, `calinixos`,
+  `cleanjaro`, `condres`, `cutefishos`, `dracos`, `elbrus`, `elive`, `evolutionos`,
+  `grombyang`, `gxde`, `hardclanz`, `iglunix`, `instantos`, `januslinux`, `kaisen`,
+  `kogaion`, `massos`, `midos`, `obarun`, `orchid`, `oreon`, `parsix`, `radix`, `ravynos`,
+  `regata`, `secureblue`, `xinux`
+- **Fedora and RHEL family**: `fedora`, `rocky`, `almalinux`, `centos`, `oracle`,
+  `silverblue`, `kinoite`, `sericea`, `nobara`
+- **Debian family**: `debian`, `devuan`, `kali`, `parrot`, `raspbian`, `mx`, `antix`,
+  `dietpi`, `deepin`, `q4os`, `proxmox`, `truenas`, `emmabuntus`, `lilidog`, `locos`,
+  `tails`, `trisquel`, `sparky`, `siduction`, `parabola`, `pardus`, `pclinuxos`,
+  `openmamba`, `pearos`, `lmde`, `slackel`, `slitaz`, `sulin`, `linspire`, `bodhi`,
+  `blankon`
+- **Ubuntu family**: `ubuntu`, `pop`, `elementary`, `zorin`, `linuxmint`, `tuxedo`,
+  `vanilla`, `peppermint`, `linuxlite`, `lliurex`, plus the `kubuntu`, `xubuntu`,
+  `lubuntu`, `ubuntu-studio`, `ubuntu-cinnamon`, `ubuntu-budgie`, `ubuntu-mate`,
+  `ubuntu-unity`, `ubuntu-kylin`, `ubuntu-sway`, `ubuntu-touch` and `ubuntu-gnome` flavours
+- **SUSE family**: `opensuse`, `opensuse-leap`, `opensuse-tumbleweed`,
+  `opensuse-microos`, `opensuse-slowroll`
 - **Gentoo family**: `gentoo`, `funtoo`, `calculate`, `redcore`, `pentoo`
-- **Other Linux**: `nixos`, `guix`, `void`, `alpine`, `postmarketos`, `solus`, `chakra`, `pureos`, `openmandriva`, `openeuler`, `antergos`, `kaos`, `altlinux`, `rosa`, `lunar`, `source-mage`, `slackware`, `mageia`, `mandriva`, `exherbo`, `scientific`, `lfs`, `puppy`
-- **Enterprise and appliance**: `clear-linux-os`, `amazon`, `openwrt`, `opnsense`, `haiku`, `qubes`, `openkylin`, `kylin`, `uos`, `astra`, `cbl-mariner`, `android`, `harmonyos`, `sailfish`, `bredos`, `smartos`
-- **BSD and Unix**: `freebsd`, `netbsd`, `openbsd`, `dragonfly`, `ghostbsd`, `midnightbsd`, `nomadbsd`, `bsd`, `solaris`, `zos`, `aix`
-- **Platform and generic**: `hypr`, `linux`, `windows`, `macos`
+- **Other Linux**: `nixos`, `guix`, `void`, `alpine`, `postmarketos`, `solus`, `chakra`,
+  `pureos`, `openmandriva`, `openeuler`, `antergos`, `kaos`, `altlinux`, `rosa`, `lunar`,
+  `source-mage`, `slackware`, `mageia`, `mandriva`, `exherbo`, `scientific`, `lfs`,
+  `puppy`, `armbian`, `sabayon`, `korora`, `netrunner`, `porteus`, `skiffos`, `swagarch`,
+  `uwuntu`, `valhalla`, `venom`, `vnux`, `wolfos`, `macaronos`, `maui`, `nuros`,
+  `nurunner`, `laxeros`, `minix`, `msys2`, `nitrux`, `osmc`, `redos`, `salix`
+- **Enterprise and appliance**: `clear-linux-os`, `amazon`, `openwrt`, `opnsense`,
+  `haiku`, `qubes`, `openkylin`, `kylin`, `uos`, `astra`, `cbl-mariner`, `android`,
+  `harmonyos`, `sailfish`, `bredos`, `smartos`, `openindiana`, `omnios`, `torizon`,
+  `serpent`
+- **BSD and Unix**: `freebsd`, `netbsd`, `openbsd`, `dragonfly`, `ghostbsd`,
+  `midnightbsd`, `nomadbsd`, `bsd`, `solaris`, `zos`, `aix`
+- **Platform and generic**: `hypr`, `linux`, `windows`, `windows-95`, `windows-8`,
+  `windows-11`, `windows-2025`, `macos`
 
-Two extra presets are also available: `minimal`, which renders the `hyprfetch` wordmark instead of distro art, and `none`, which hides the logo entirely. Run `hyprfetch --list-logos` for the authoritative list.
+Two extra presets are also available: `minimal`, which renders the `hyprfetch` wordmark instead of distro art, and `none`, which hides the logo entirely. Run `hyprfetch --list-logos` for the authoritative list of all 213 presets.
 
 Auto detection follows the same basic idea that makes `fastfetch` strong here: check `VARIANT`, then `ID`, then `NAME`, then `ID_LIKE`, and only then fall back to the platform family logo. That means unsupported derivatives still land on a sensible family logo in many cases instead of dropping straight to a generic fallback.
 
