@@ -3,7 +3,8 @@ use clap::Parser;
 use hyprfetch::app::App;
 use hyprfetch::cli::CliArgs;
 use hyprfetch::config;
-use hyprfetch::model::{LogoPreset, ModuleId, PaletteName};
+use hyprfetch::logo::LogoPreset;
+use hyprfetch::model::{ModuleId, PaletteName};
 
 fn main() -> Result<()> {
     let cli = CliArgs::parse();

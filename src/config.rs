@@ -8,7 +8,8 @@ use serde::Deserialize;
 use toml::Value;
 
 use crate::cli::CliArgs;
-use crate::model::{ColorMode, LogoPreset, ModuleId, PaletteName, RenderStyle};
+use crate::logo::LogoPreset;
+use crate::model::{ColorMode, ModuleId, PaletteName, RenderStyle};
 
 const DEFAULT_CONFIG_TOML: &str = r#"version = 1
 
@@ -527,7 +528,8 @@ mod tests {
         validate,
     };
     use crate::cli::CliArgs;
-    use crate::model::{ColorMode, LogoPreset, ModuleId, PaletteName};
+    use crate::logo::LogoPreset;
+    use crate::model::{ColorMode, ModuleId, PaletteName};
 
     #[test]
     fn loads_valid_toml_config() {

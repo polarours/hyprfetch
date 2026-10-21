@@ -721,9 +721,9 @@ mod tests {
         output_priority, prioritize_outputs_for_width, render_diagnostics, render_text_with_width,
     };
     use crate::config::{AppearanceConfig, ModuleConfig, RuntimeConfig};
+    use crate::logo::LogoPreset;
     use crate::model::{
-        ColorMode, LogoPreset, ModuleId, ModuleOutput, ModuleStatus, OutputRow, PaletteName,
-        RenderStyle,
+        ColorMode, ModuleId, ModuleOutput, ModuleStatus, OutputRow, PaletteName, RenderStyle,
     };
 
     #[test]

@@ -2,7 +2,8 @@ use std::path::PathBuf;
 
 use clap::Parser;
 
-use crate::model::{ColorMode, LogoPreset, ModuleId, PaletteName, RenderStyle};
+use crate::logo::LogoPreset;
+use crate::model::{ColorMode, ModuleId, PaletteName, RenderStyle};
 
 #[derive(Debug, Clone, Parser)]
 #[command(

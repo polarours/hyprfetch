@@ -46,6 +46,7 @@ pub struct OsInfo {
     pub name: String,
     pub id: Option<String>,
     pub id_like: Vec<String>,
+    pub variant: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -413,6 +414,7 @@ fn parse_os_release(raw: &str) -> Result<OsInfo, ProviderError> {
     let mut version = None;
     let mut id = None;
     let mut id_like = Vec::new();
+    let mut variant = None;
 
     for line in raw.lines() {
         let line = line.trim();
@@ -431,6 +433,9 @@ fn parse_os_release(raw: &str) -> Result<OsInfo, ProviderError> {
             "ID_LIKE" => {
                 id_like = value.split_whitespace().map(ToString::to_string).collect();
             }
+            "VARIANT" | "VARIANT_ID" if !value.is_empty() => {
+                variant = Some(value);
+            }
             _ => {}
         }
     }
@@ -440,6 +445,7 @@ fn parse_os_release(raw: &str) -> Result<OsInfo, ProviderError> {
             name: pretty_name,
             id,
             id_like,
+            variant,
         });
     }
 
@@ -452,6 +458,7 @@ fn parse_os_release(raw: &str) -> Result<OsInfo, ProviderError> {
             name: combined,
             id,
             id_like,
+            variant,
         });
     }
 
