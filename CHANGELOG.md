@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **System modules**: realtime CPU utilisation, GPU utilisation for NVIDIA, AMD and Intel
 - **Hyprland modules**: hypr-workspace-history (last foreign focus)
-- **Ecosystem detection**: version info for detected daemons
+- **Ecosystem detection**: version info for detected daemons, now covering portal, polkit and tray backends as well
 - **Output modes**: `--watch` and `--watch-interval` for continuous refresh
 - **Distro logos**: the catalogue grew from 23 to 124 presets, covering the Arch, Fedora, Debian, Ubuntu, SUSE and Gentoo families plus their derivatives, the BSDs and several appliance distributions
 - **Logo detection**: `VARIANT` is read from `os-release`, so Ubuntu flavours and Fedora immutable variants resolve to their own logo
@@ -24,12 +24,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--logo pop` selected the Ubuntu logo, and Linux Mint, Rocky, Kali and other derivatives fell back to the logo of the distribution they derive from
 - The integration test asserting the OS row hardcoded the name of the distribution it was written on, so it failed on every CI runner that is not Arch
 - The disk module called `statvfs`, which macOS does not have, so the macOS build never compiled
+- Reading the version of a detected backend could hang the run, because a backend that ignores `--version` never exits
 
 ### Changed
 
 - README module and logo lists now match the shipped catalog
 - The Hyprland module directory is split per domain: session, window, workspaces, monitors, rice, input, binds, layers, config, rules, shortcuts, layouts and ecosystem
 - The logo catalogue is generated from a single table, so adding a logo no longer needs changes in several places
+- Ecosystem versions are read in parallel instead of one backend after the other, and each probe is given up on after 500ms
 
 ## [0.2.0] - 2025-06-23
 

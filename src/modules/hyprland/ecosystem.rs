@@ -62,6 +62,15 @@ impl Module for HyprEcosystemModule {
                 if let Some((label, _version)) = &ecosystem.lock {
                     rows.push(OutputRow::new("Lock", label));
                 }
+                if let Some((label, _version)) = &ecosystem.portal {
+                    rows.push(OutputRow::new("Portal", label));
+                }
+                if let Some((label, _version)) = &ecosystem.polkit {
+                    rows.push(OutputRow::new("Polkit", label));
+                }
+                if let Some((label, _version)) = &ecosystem.tray {
+                    rows.push(OutputRow::new("Tray", label));
+                }
 
                 ModuleOutput::ok(self.id(), rows, json!(ecosystem))
             }
@@ -106,6 +115,15 @@ pub fn summarize_ecosystem(ecosystem: &EcosystemInfo) -> String {
     if let Some((label, version)) = &ecosystem.lock {
         parts.push(format!("lock:{}", eco_display(label, version)));
     }
+    if let Some((label, version)) = &ecosystem.portal {
+        parts.push(format!("portal:{}", eco_display(label, version)));
+    }
+    if let Some((label, version)) = &ecosystem.polkit {
+        parts.push(format!("polkit:{}", eco_display(label, version)));
+    }
+    if let Some((label, version)) = &ecosystem.tray {
+        parts.push(format!("tray:{}", eco_display(label, version)));
+    }
     parts.join(" ")
 }
 
@@ -132,11 +150,14 @@ mod tests {
             screenshot: Some(("grim".to_string(), None)),
             idle: Some(("hypridle".to_string(), None)),
             lock: Some(("hyprlock".to_string(), None)),
+            portal: Some(("portal".to_string(), None)),
+            polkit: Some(("polkit".to_string(), None)),
+            tray: Some(("tray".to_string(), None)),
         };
 
         assert_eq!(
             summarize_ecosystem(&ecosystem),
-            "wall:hyprpaper bar:waybar launch:fuzzel notify:mako clip:cliphist shot:grim idle:hypridle lock:hyprlock"
+            "wall:hyprpaper bar:waybar launch:fuzzel notify:mako clip:cliphist shot:grim idle:hypridle lock:hyprlock portal:portal polkit:polkit tray:tray"
         );
     }
 

@@ -1,12 +1,17 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
+use std::sync::mpsc;
+use std::time::Duration;
 
 use serde::Serialize;
 
 use crate::providers::system::ProviderError;
+
+/// How long a `--version` probe may take before it is given up on.
+const VERSION_PROBE_TIMEOUT: Duration = Duration::from_millis(500);
 
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct ThemeInfo {
@@ -50,6 +55,9 @@ pub struct EcosystemInfo {
     pub screenshot: Option<(String, Option<String>)>,
     pub idle: Option<(String, Option<String>)>,
     pub lock: Option<(String, Option<String>)>,
+    pub portal: Option<(String, Option<String>)>,
+    pub polkit: Option<(String, Option<String>)>,
+    pub tray: Option<(String, Option<String>)>,
 }
 
 impl EcosystemInfo {
@@ -62,6 +70,9 @@ impl EcosystemInfo {
             && self.screenshot.is_none()
             && self.idle.is_none()
             && self.lock.is_none()
+            && self.portal.is_none()
+            && self.polkit.is_none()
+            && self.tray.is_none()
     }
 
     pub fn display_label(&self, field: &str) -> Option<String> {
@@ -74,6 +85,9 @@ impl EcosystemInfo {
             "screenshot" => &self.screenshot,
             "idle" => &self.idle,
             "lock" => &self.lock,
+            "portal" => &self.portal,
+            "polkit" => &self.polkit,
+            "tray" => &self.tray,
             _ => return None,
         };
         pair.as_ref().map(|(label, version)| {
@@ -196,79 +210,224 @@ fn read_process_names() -> Result<HashSet<String>, ProviderError> {
     Ok(names)
 }
 
-fn detect_ecosystem_info(process_names: &HashSet<String>) -> EcosystemInfo {
-    EcosystemInfo {
-        wallpaper: detect_versioned_backend(
-            process_names,
-            &[
-                ("hyprpaper", "hyprpaper"),
-                ("swww-daemon", "swww"),
-                ("swaybg", "swaybg"),
-                ("mpvpaper", "mpvpaper"),
-                ("waypaper", "waypaper"),
-            ],
-        ),
-        bar: detect_versioned_backend(
-            process_names,
-            &[("waybar", "waybar"), ("ags", "ags"), ("eww", "eww")],
-        ),
-        launcher: detect_versioned_backend(
-            process_names,
-            &[
-                ("fuzzel", "fuzzel"),
-                ("rofi", "rofi"),
-                ("wofi", "wofi"),
-                ("walker", "walker"),
-                ("tofi", "tofi"),
-            ],
-        ),
-        notifications: detect_versioned_backend(
-            process_names,
-            &[("mako", "mako"), ("swaync", "swaync"), ("dunst", "dunst")],
-        ),
-        clipboard: detect_versioned_backend(
-            process_names,
-            &[
-                ("cliphist", "cliphist"),
-                ("wl-copy", "wl-clipboard"),
-                ("wl-paste", "wl-clipboard"),
-            ],
-        ),
-        screenshot: detect_versioned_backend(
-            process_names,
-            &[
-                ("grim", "grim"),
-                ("slurp", "slurp"),
-                ("hyprshot", "hyprshot"),
-                ("flameshot", "flameshot"),
-            ],
-        ),
-        idle: detect_versioned_backend(
-            process_names,
-            &[("hypridle", "hypridle"), ("swayidle", "swayidle")],
-        ),
-        lock: detect_versioned_backend(
-            process_names,
-            &[
-                ("hyprlock", "hyprlock"),
-                ("swaylock", "swaylock"),
-                ("gtklock", "gtklock"),
-            ],
-        ),
+/// A desktop component to look for among the running processes.
+#[derive(Debug, Clone, Copy)]
+struct Backend {
+    /// The process name as it appears in the process list.
+    process: &'static str,
+    /// The name to show in the output.
+    label: &'static str,
+    /// Whether running the process with `--version` is safe. Agents such as
+    /// portal implementations would otherwise start a second instance.
+    probe: bool,
+}
+
+const fn backend(process: &'static str, label: &'static str) -> Backend {
+    Backend {
+        process,
+        label,
+        probe: true,
     }
 }
 
-fn detect_versioned_backend(
-    process_names: &HashSet<String>,
-    candidates: &[(&str, &str)],
-) -> Option<(String, Option<String>)> {
-    for (process, label) in candidates {
-        if process_names.contains(*process) {
-            let version = detect_version(process);
-            return Some((label.to_string(), version));
-        }
+/// A backend that must not be started again to read its version.
+const fn passive_backend(process: &'static str, label: &'static str) -> Backend {
+    Backend {
+        process,
+        label,
+        probe: false,
     }
-    None
+}
+
+const WALLPAPER_BACKENDS: &[Backend] = &[
+    backend("hyprpaper", "hyprpaper"),
+    backend("swww-daemon", "swww"),
+    backend("swaybg", "swaybg"),
+    backend("mpvpaper", "mpvpaper"),
+    backend("waypaper", "waypaper"),
+];
+
+const BAR_BACKENDS: &[Backend] = &[
+    backend("waybar", "waybar"),
+    backend("ags", "ags"),
+    backend("eww", "eww"),
+];
+
+const LAUNCHER_BACKENDS: &[Backend] = &[
+    backend("fuzzel", "fuzzel"),
+    backend("rofi", "rofi"),
+    backend("wofi", "wofi"),
+    backend("walker", "walker"),
+    backend("tofi", "tofi"),
+];
+
+const NOTIFICATION_BACKENDS: &[Backend] = &[
+    backend("mako", "mako"),
+    backend("swaync", "swaync"),
+    backend("dunst", "dunst"),
+];
+
+const CLIPBOARD_BACKENDS: &[Backend] = &[
+    backend("cliphist", "cliphist"),
+    backend("wl-copy", "wl-clipboard"),
+    backend("wl-paste", "wl-clipboard"),
+];
+
+const SCREENSHOT_BACKENDS: &[Backend] = &[
+    backend("grim", "grim"),
+    backend("slurp", "slurp"),
+    backend("hyprshot", "hyprshot"),
+    backend("flameshot", "flameshot"),
+];
+
+const IDLE_BACKENDS: &[Backend] = &[
+    backend("hypridle", "hypridle"),
+    backend("swayidle", "swayidle"),
+];
+
+const LOCK_BACKENDS: &[Backend] = &[
+    backend("hyprlock", "hyprlock"),
+    backend("swaylock", "swaylock"),
+    backend("gtklock", "gtklock"),
+];
+
+const PORTAL_BACKENDS: &[Backend] = &[
+    passive_backend("xdg-desktop-portal-hypr", "portal"),
+    passive_backend("xdg-desktop-portal-wlr", "portal"),
+    passive_backend("xdg-desktop-portal-gtk", "portal"),
+    passive_backend("xdg-desktop-portal-gnome", "portal"),
+    passive_backend("xdg-desktop-portal-kde", "portal"),
+    passive_backend("xdg-desktop-portal", "portal"),
+];
+
+const POLKIT_BACKENDS: &[Backend] = &[
+    passive_backend("hyprpolkitagent", "polkit"),
+    passive_backend("polkit_gnome_authentication_agent_1", "polkit"),
+    passive_backend("polkit-gnome-authentication-agent-1", "polkit"),
+    passive_backend("lxqt-policykit-agent", "polkit"),
+    passive_backend("mate-polkit", "polkit"),
+    passive_backend("polkit-mate", "polkit"),
+    passive_backend("xembeds-polkit-agent", "polkit"),
+];
+
+const TRAY_BACKENDS: &[Backend] = &[
+    backend("stalonetray", "tray"),
+    backend("trayion", "tray"),
+    backend("autotray", "tray"),
+    backend("ksnip-tray", "tray"),
+];
+
+/// The first backend of a category that is running.
+fn pick_backend(backends: &[Backend], process_names: &HashSet<String>) -> Option<Backend> {
+    backends
+        .iter()
+        .copied()
+        .find(|backend| process_names.contains(backend.process))
+}
+
+fn detect_ecosystem_info(process_names: &HashSet<String>) -> EcosystemInfo {
+    let wallpaper = pick_backend(WALLPAPER_BACKENDS, process_names);
+    let bar = pick_backend(BAR_BACKENDS, process_names);
+    let launcher = pick_backend(LAUNCHER_BACKENDS, process_names);
+    let notifications = pick_backend(NOTIFICATION_BACKENDS, process_names);
+    let clipboard = pick_backend(CLIPBOARD_BACKENDS, process_names);
+    let screenshot = pick_backend(SCREENSHOT_BACKENDS, process_names);
+    let idle = pick_backend(IDLE_BACKENDS, process_names);
+    let lock = pick_backend(LOCK_BACKENDS, process_names);
+    let portal = pick_backend(PORTAL_BACKENDS, process_names);
+    let polkit = pick_backend(POLKIT_BACKENDS, process_names);
+    let tray = pick_backend(TRAY_BACKENDS, process_names);
+
+    // Reading a version starts a process per backend, so all probes run at
+    // the same time instead of one after the other.
+    let picks = [
+        wallpaper,
+        bar,
+        launcher,
+        notifications,
+        clipboard,
+        screenshot,
+        idle,
+        lock,
+        portal,
+        polkit,
+        tray,
+    ];
+    let versions = probe_versions(&picks);
+
+    EcosystemInfo {
+        wallpaper: ecosystem_entry(wallpaper, &versions),
+        bar: ecosystem_entry(bar, &versions),
+        launcher: ecosystem_entry(launcher, &versions),
+        notifications: ecosystem_entry(notifications, &versions),
+        clipboard: ecosystem_entry(clipboard, &versions),
+        screenshot: ecosystem_entry(screenshot, &versions),
+        idle: ecosystem_entry(idle, &versions),
+        lock: ecosystem_entry(lock, &versions),
+        portal: ecosystem_entry(portal, &versions),
+        polkit: ecosystem_entry(polkit, &versions),
+        tray: ecosystem_entry(tray, &versions),
+    }
+}
+
+/// Read the versions of the running backends, in parallel.
+fn probe_versions(picks: &[Option<Backend>]) -> HashMap<&'static str, Option<String>> {
+    let active: Vec<Backend> = picks.iter().filter_map(|pick| *pick).collect();
+    if active.is_empty() {
+        return HashMap::new();
+    }
+
+    std::thread::scope(|scope| {
+        let handles: Vec<_> = active
+            .iter()
+            .map(|backend| {
+                scope.spawn(move || {
+                    let version = if backend.probe {
+                        detect_version_with_timeout(backend.process, VERSION_PROBE_TIMEOUT)
+                    } else {
+                        None
+                    };
+                    (backend.label, version)
+                })
+            })
+            .collect();
+
+        handles
+            .into_iter()
+            .filter_map(|handle| handle.join().ok())
+            .collect()
+    })
+}
+
+/// The label and version of a detected backend.
+fn ecosystem_entry(
+    backend: Option<Backend>,
+    versions: &HashMap<&'static str, Option<String>>,
+) -> Option<(String, Option<String>)> {
+    let backend = backend?;
+    let version = versions.get(backend.label).cloned().flatten();
+    Some((backend.label.to_string(), version))
+}
+
+fn detect_version_with_timeout(process: &str, timeout: Duration) -> Option<String> {
+    let process = process.to_string();
+    with_timeout(timeout, move || detect_version(&process)).flatten()
+}
+
+/// Run `work` on its own thread and give up on it after `timeout`.
+///
+/// The work outlives the timeout on purpose: a backend that ignores
+/// `--version` must not be able to hang the whole run.
+fn with_timeout<T: Send + 'static>(
+    timeout: Duration,
+    work: impl FnOnce() -> T + Send + 'static,
+) -> Option<T> {
+    let (sender, receiver) = mpsc::channel();
+    std::thread::spawn(move || {
+        let _ = sender.send(work());
+    });
+
+    receiver.recv_timeout(timeout).ok()
 }
 
 fn detect_version(process: &str) -> Option<String> {
@@ -302,8 +461,9 @@ fn detect_version(process: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
+    use std::time::{Duration, Instant};
 
-    use super::{detect_ecosystem_info, parse_gtk_settings};
+    use super::{detect_ecosystem_info, parse_gtk_settings, with_timeout};
 
     #[test]
     fn parses_gtk_settings() {
@@ -370,5 +530,59 @@ gtk-font-name=Noto Sans,  10
             ecosystem.lock.as_ref().map(|(l, _)| l.as_str()),
             Some("hyprlock")
         );
+    }
+
+    #[test]
+    fn detects_portal_polkit_and_tray_backends() {
+        let processes: HashSet<String> =
+            ["xdg-desktop-portal-hypr", "hyprpolkitagent", "stalonetray"]
+                .into_iter()
+                .map(String::from)
+                .collect();
+
+        let ecosystem = detect_ecosystem_info(&processes);
+        assert_eq!(
+            ecosystem.portal.as_ref().map(|(label, _)| label.as_str()),
+            Some("portal")
+        );
+        assert_eq!(
+            ecosystem.polkit.as_ref().map(|(label, _)| label.as_str()),
+            Some("polkit")
+        );
+        assert_eq!(
+            ecosystem.tray.as_ref().map(|(label, _)| label.as_str()),
+            Some("tray")
+        );
+    }
+
+    #[test]
+    fn passive_backends_are_not_started_for_their_version() {
+        let processes: HashSet<String> = ["xdg-desktop-portal-hypr"]
+            .into_iter()
+            .map(String::from)
+            .collect();
+
+        let ecosystem = detect_ecosystem_info(&processes);
+        let (_, version) = ecosystem.portal.expect("portal detected");
+        assert_eq!(version, None);
+    }
+
+    #[test]
+    fn gives_up_on_a_hanging_probe() {
+        let started = Instant::now();
+        let result = with_timeout(Duration::from_millis(100), || {
+            std::thread::sleep(Duration::from_secs(30));
+            42
+        });
+
+        assert_eq!(result, None);
+        assert!(started.elapsed() < Duration::from_secs(5));
+    }
+
+    #[test]
+    fn returns_the_probe_result_when_it_finishes_in_time() {
+        let result = with_timeout(Duration::from_secs(5), || "version 1.2.3");
+
+        assert_eq!(result, Some("version 1.2.3"));
     }
 }
