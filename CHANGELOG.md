@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **System modules**: realtime CPU utilisation, GPU utilisation for NVIDIA, AMD and Intel
 - **Hyprland modules**: hypr-workspace-history (last foreign focus)
 - **Ecosystem detection**: version info for detected daemons, now covering portal, polkit and tray backends as well
+- **Disk module**: reports several mount points at once, configured with `mounts = ["/", "/home"]`
+- **Input devices**: the caps and num lock state of the main keyboard, mentioned in the summary while engaged
 - **Output modes**: `--watch` and `--watch-interval` for continuous refresh
 - **Distro logos**: the catalogue grew from 23 to 124 presets, covering the Arch, Fedora, Debian, Ubuntu, SUSE and Gentoo families plus their derivatives, the BSDs and several appliance distributions
 - **Logo detection**: `VARIANT` is read from `os-release`, so Ubuntu flavours and Fedora immutable variants resolve to their own logo
@@ -32,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The Hyprland module directory is split per domain: session, window, workspaces, monitors, rice, input, binds, layers, config, rules, shortcuts, layouts and ecosystem
 - The logo catalogue is generated from a single table, so adding a logo no longer needs changes in several places
 - Ecosystem versions are read in parallel instead of one backend after the other, and each probe is given up on after 500ms
+- Selecting modules with `--modules` keeps the options configured for them instead of discarding them
 
 ## [0.2.0] - 2025-06-23
 

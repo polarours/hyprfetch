@@ -347,6 +347,10 @@ pub struct HyprInputDevice {
     pub variant: Option<String>,
     pub options: Option<String>,
     pub active_keymap: Option<String>,
+    #[serde(rename = "capsLock")]
+    pub caps_lock: Option<bool>,
+    #[serde(rename = "numLock")]
+    pub num_lock: Option<bool>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]

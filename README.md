@@ -178,6 +178,7 @@ name = "swap"
 
 [[modules]]
 name = "disk"
+mounts = ["/", "/home"]
 
 [[modules]]
 name = "battery"
@@ -277,6 +278,19 @@ command = "sh"
 args = ["-c", "printf 'Battery\t88%%\n'"]
 timeout_ms = 1000
 ```
+
+Module options are set next to the module they belong to. The disk module reports the
+root file system by default; list the mount points you care about to report more of them:
+
+```toml
+[[modules]]
+name = "disk"
+mounts = ["/", "/home", "/boot"]
+```
+
+Selecting modules on the command line narrows the output but keeps the options
+configured for them, so `hyprfetch --modules disk` still reports the mount points from
+the config file.
 
 ## Command Plugins
 

@@ -46,6 +46,15 @@ impl Module for HyprDevicesModule {
                     {
                         rows.push(OutputRow::new("Keymap", keymap));
                     }
+                    if let Some(layout) = keyboard.layout.as_deref().filter(|l| !l.is_empty()) {
+                        rows.push(OutputRow::new("Layout", layout));
+                    }
+                    if let Some(caps) = keyboard.caps_lock {
+                        rows.push(OutputRow::new("Caps Lock", lock_label(caps)));
+                    }
+                    if let Some(num) = keyboard.num_lock {
+                        rows.push(OutputRow::new("Num Lock", lock_label(num)));
+                    }
                 }
 
                 ModuleOutput::ok(self.id(), rows, json!({ "devices": devices }))
@@ -65,7 +74,29 @@ fn summarize_input_devices(devices: &crate::providers::hyprland::HyprDevices) ->
     if let Some(keymap) = primary_keyboard_keymap(devices) {
         parts.push(format!("keymap:{keymap}"));
     }
+    // Lock states are only worth a mention while they are engaged.
+    for (label, engaged) in lock_states(devices) {
+        if engaged {
+            parts.push(format!("{label}:on"));
+        }
+    }
     parts.join(", ")
+}
+
+/// The lock states of the main keyboard.
+fn lock_states(devices: &crate::providers::hyprland::HyprDevices) -> Vec<(&'static str, bool)> {
+    let Some(keyboard) = primary_keyboard(devices) else {
+        return Vec::new();
+    };
+
+    let mut states = Vec::new();
+    if let Some(caps) = keyboard.caps_lock {
+        states.push(("caps", caps));
+    }
+    if let Some(num) = keyboard.num_lock {
+        states.push(("num", num));
+    }
+    states
 }
 
 fn primary_keyboard(
@@ -91,6 +122,10 @@ fn push_device_row(rows: &mut Vec<OutputRow>, label: &str, count: usize) {
     if count > 0 {
         rows.push(OutputRow::new(label, count.to_string()));
     }
+}
+
+fn lock_label(engaged: bool) -> &'static str {
+    if engaged { "on" } else { "off" }
 }
 
 fn push_summary_part(parts: &mut Vec<String>, count: usize, singular: &str, plural: &str) {
@@ -135,5 +170,51 @@ mod tests {
             summarize_input_devices(&devices),
             "2 keyboards, 1 mouse, keymap:Colemak"
         );
+    }
+
+    #[test]
+    fn mentions_engaged_lock_states_only() {
+        let devices = HyprDevices {
+            keyboards: vec![HyprInputDevice {
+                name: Some("Keychron Q1".to_string()),
+                main: Some(true),
+                active_keymap: Some("Colemak".to_string()),
+                caps_lock: Some(true),
+                num_lock: Some(false),
+                ..HyprInputDevice::default()
+            }],
+            ..HyprDevices::default()
+        };
+
+        assert_eq!(
+            summarize_input_devices(&devices),
+            "1 keyboard, keymap:Colemak, caps:on"
+        );
+    }
+
+    #[test]
+    fn keeps_quiet_while_the_locks_are_off() {
+        let devices = HyprDevices {
+            keyboards: vec![HyprInputDevice {
+                name: Some("Keychron Q1".to_string()),
+                main: Some(true),
+                active_keymap: Some("Colemak".to_string()),
+                caps_lock: Some(false),
+                num_lock: Some(false),
+                ..HyprInputDevice::default()
+            }],
+            ..HyprDevices::default()
+        };
+
+        assert_eq!(
+            summarize_input_devices(&devices),
+            "1 keyboard, keymap:Colemak"
+        );
+    }
+
+    #[test]
+    fn reports_lock_labels() {
+        assert_eq!(lock_label(true), "on");
+        assert_eq!(lock_label(false), "off");
     }
 }
