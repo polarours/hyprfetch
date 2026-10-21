@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GPU utilisation is queried once per run and matched to each device by PCI bus id, so multi-GPU systems report per-GPU values
 - `--watch` redraws in place on a terminal instead of scrolling past
 - `--logo pop` selected the Ubuntu logo, and Linux Mint, Rocky, Kali and other derivatives fell back to the logo of the distribution they derive from
+- The integration test asserting the OS row hardcoded the name of the distribution it was written on, so it failed on every CI runner that is not Arch
 
 ### Changed
 

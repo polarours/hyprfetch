@@ -4,6 +4,57 @@ use assert_cmd::Command;
 use predicates::prelude::*;
 use tempfile::tempdir;
 
+/// The distribution name the OS module reports, read the same way the binary
+/// does. Assertions use this instead of a fixed name so the tests pass on
+/// every distribution the CI happens to run on.
+fn system_os_name() -> String {
+    os_name_from_release(&fs::read_to_string("/etc/os-release").unwrap_or_default())
+}
+
+fn os_name_from_release(raw: &str) -> String {
+    let mut pretty_name = None;
+    let mut name = None;
+    let mut version = None;
+    for line in raw.lines() {
+        let Some((key, value)) = line.split_once('=') else {
+            continue;
+        };
+        let value = value.trim().trim_matches('"');
+        match key {
+            "PRETTY_NAME" => pretty_name = Some(value.to_string()),
+            "NAME" => name = Some(value.to_string()),
+            "VERSION" => version = Some(value.to_string()),
+            _ => {}
+        }
+    }
+
+    pretty_name
+        .or_else(|| match (name, version) {
+            (Some(name), Some(version)) => Some(format!("{name} {version}")),
+            (name, _) => name,
+        })
+        .unwrap_or_default()
+}
+
+#[test]
+fn reads_os_name_from_release() {
+    assert_eq!(
+        os_name_from_release("PRETTY_NAME=\"Ubuntu 24.04.1 LTS\"\nID=ubuntu\n"),
+        "Ubuntu 24.04.1 LTS"
+    );
+    assert_eq!(
+        os_name_from_release(
+            "NAME=\"AlmaLinux\"\nVERSION=\"9.4 (Seafoam Ocelot)\"\nID=almalinux\n"
+        ),
+        "AlmaLinux 9.4 (Seafoam Ocelot)"
+    );
+    assert_eq!(
+        os_name_from_release("NAME=\"Rocky Linux\"\nID=rocky\n"),
+        "Rocky Linux"
+    );
+    assert_eq!(os_name_from_release(""), "");
+}
+
 #[test]
 fn lists_available_modules() {
     Command::cargo_bin("hyprfetch")
@@ -237,7 +288,7 @@ fn strips_fastfetch_logo_color_markers_from_output() {
         .args(["--color", "never", "--logo", "arch", "--modules", "os"])
         .assert()
         .success()
-        .stdout(predicate::str::contains("Arch Linux"))
+        .stdout(predicate::str::contains(system_os_name()))
         .stdout(predicate::str::contains("$1").not())
         .stdout(predicate::str::contains("$2").not());
 }
