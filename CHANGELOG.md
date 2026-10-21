@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--watch` redraws in place on a terminal instead of scrolling past
 - `--logo pop` selected the Ubuntu logo, and Linux Mint, Rocky, Kali and other derivatives fell back to the logo of the distribution they derive from
 - The integration test asserting the OS row hardcoded the name of the distribution it was written on, so it failed on every CI runner that is not Arch
+- The disk module called `statvfs`, which macOS does not have, so the macOS build never compiled
 
 ### Changed
 

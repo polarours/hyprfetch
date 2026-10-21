@@ -769,17 +769,7 @@ fn count_brew_packages() -> Option<usize> {
 }
 
 fn read_disk_info(mount: &str) -> Result<DiskInfo, ProviderError> {
-    let mount_cstring = CString::new(mount)
-        .map_err(|error| ProviderError::parse(format!("invalid mount path: {error}")))?;
-    let mut stat = std::mem::MaybeUninit::<libc::statvfs>::uninit();
-    let result = unsafe { libc::statvfs(mount_cstring.as_ptr(), stat.as_mut_ptr()) };
-    if result != 0 {
-        return Err(ProviderError::io(std::io::Error::last_os_error()));
-    }
-    let stat = unsafe { stat.assume_init() };
-    let fragment_size = stat.f_frsize;
-    let total_bytes = stat.f_blocks * fragment_size;
-    let available_bytes = stat.f_bavail * fragment_size;
+    let (total_bytes, available_bytes) = filesystem_usage(mount)?;
 
     Ok(DiskInfo {
         mount: mount.to_string(),
@@ -787,6 +777,44 @@ fn read_disk_info(mount: &str) -> Result<DiskInfo, ProviderError> {
         total_bytes,
         available_bytes,
     })
+}
+
+/// Total and available bytes of the filesystem that holds `path`.
+///
+/// macOS has no `statvfs` call, so it reports the same numbers through
+/// `statfs`, which counts blocks in `f_bsize` units.
+#[cfg(not(target_os = "macos"))]
+fn filesystem_usage(path: &str) -> Result<(u64, u64), ProviderError> {
+    let path_cstring = CString::new(path)
+        .map_err(|error| ProviderError::parse(format!("invalid mount path: {error}")))?;
+    let mut stat = std::mem::MaybeUninit::<libc::statvfs>::uninit();
+    let result = unsafe { libc::statvfs(path_cstring.as_ptr(), stat.as_mut_ptr()) };
+    if result != 0 {
+        return Err(ProviderError::io(std::io::Error::last_os_error()));
+    }
+    let stat = unsafe { stat.assume_init() };
+    let fragment_size = stat.f_frsize;
+    Ok((
+        stat.f_blocks.saturating_mul(fragment_size),
+        stat.f_bavail.saturating_mul(fragment_size),
+    ))
+}
+
+#[cfg(target_os = "macos")]
+fn filesystem_usage(path: &str) -> Result<(u64, u64), ProviderError> {
+    let path_cstring = CString::new(path)
+        .map_err(|error| ProviderError::parse(format!("invalid mount path: {error}")))?;
+    let mut stat = std::mem::MaybeUninit::<libc::statfs>::uninit();
+    let result = unsafe { libc::statfs(path_cstring.as_ptr(), stat.as_mut_ptr()) };
+    if result != 0 {
+        return Err(ProviderError::io(std::io::Error::last_os_error()));
+    }
+    let stat = unsafe { stat.assume_init() };
+    let block_size = u64::from(stat.f_bsize);
+    Ok((
+        stat.f_blocks.saturating_mul(block_size),
+        stat.f_bavail.saturating_mul(block_size),
+    ))
 }
 
 fn root_filesystem_type(mount: &str) -> Option<String> {
