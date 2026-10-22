@@ -12,6 +12,9 @@ pub struct HyprWorkspace {
     pub windows: Option<i32>,
     #[serde(rename = "hasfullscreen")]
     pub has_fullscreen: Option<bool>,
+    /// The title of the window that was last focused in this workspace.
+    #[serde(rename = "lastwindowtitle")]
+    pub last_window_title: Option<String>,
 }
 
 impl HyprWorkspace {

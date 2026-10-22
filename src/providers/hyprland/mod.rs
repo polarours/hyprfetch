@@ -241,7 +241,6 @@ impl HyprlandProvider {
             s.spawn(|| self.monitors());
             s.spawn(|| self.clients());
             s.spawn(|| self.cursor_position());
-            s.spawn(|| self.workspace_history());
             s.spawn(|| self.binds());
             s.spawn(|| self.layers());
             s.spawn(|| self.config_errors());

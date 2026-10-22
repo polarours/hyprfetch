@@ -63,18 +63,4 @@ impl HyprlandProvider {
     pub fn cursor_position(&self) -> Result<HyprCursorPosition, ProviderError> {
         self.cached(&self.cursor_position, "cursorpos")
     }
-
-    pub fn workspace_history(&self) -> Result<String, ProviderError> {
-        let option = self.option("animations:workspace:lastforeignfocus")?;
-        let ws_name = option
-            .str_value
-            .or_else(|| {
-                option
-                    .data
-                    .as_ref()
-                    .and_then(|v| v.as_str().map(str::to_string))
-            })
-            .ok_or_else(|| ProviderError::parse("lastforeignfocus has no string value"))?;
-        Ok(ws_name)
-    }
 }
