@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **System modules**: realtime CPU utilisation, GPU utilisation for NVIDIA, AMD and Intel
 - **Hyprland modules**: hypr-workspace-history (last foreign focus)
-- **Ecosystem detection**: version info for detected daemons, now covering portal, polkit and tray backends as well
+- **Ecosystem detection**: version info for detected daemons, now covering portal, polkit, tray and colour picker backends as well
 - **Disk module**: reports several mount points at once, configured with `mounts = ["/", "/home"]`
 - **Input devices**: the caps and num lock state of the main keyboard, mentioned in the summary while engaged
 - **Output modes**: `--watch` and `--watch-interval` for continuous refresh
@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The integration test asserting the OS row hardcoded the name of the distribution it was written on, so it failed on every CI runner that is not Arch
 - The disk module called `statvfs`, which macOS does not have, so the macOS build never compiled
 - Reading the version of a detected backend could hang the run, because a backend that ignores `--version` never exits
+- Backends whose name is longer than 15 characters were never detected, because the kernel truncates a process name in the process list
 
 ### Changed
 

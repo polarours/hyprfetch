@@ -58,6 +58,7 @@ pub struct EcosystemInfo {
     pub portal: Option<(String, Option<String>)>,
     pub polkit: Option<(String, Option<String>)>,
     pub tray: Option<(String, Option<String>)>,
+    pub picker: Option<(String, Option<String>)>,
 }
 
 impl EcosystemInfo {
@@ -73,6 +74,7 @@ impl EcosystemInfo {
             && self.portal.is_none()
             && self.polkit.is_none()
             && self.tray.is_none()
+            && self.picker.is_none()
     }
 
     pub fn display_label(&self, field: &str) -> Option<String> {
@@ -88,6 +90,7 @@ impl EcosystemInfo {
             "portal" => &self.portal,
             "polkit" => &self.polkit,
             "tray" => &self.tray,
+            "picker" => &self.picker,
             _ => return None,
         };
         pair.as_ref().map(|(label, version)| {
@@ -222,6 +225,23 @@ struct Backend {
     probe: bool,
 }
 
+/// The kernel keeps only the first 15 characters of a process name.
+const COMM_NAME_LIMIT: usize = 15;
+
+impl Backend {
+    /// Whether a name from the process list belongs to this backend.
+    ///
+    /// The kernel truncates a process name to 15 characters, so `xdg-desktop-portal`
+    /// is listed as `xdg-desktop-por` and is matched by that prefix.
+    fn matches(self, process_name: &str) -> bool {
+        if process_name == self.process {
+            return true;
+        }
+
+        process_name.len() == COMM_NAME_LIMIT && self.process.starts_with(process_name)
+    }
+}
+
 const fn backend(process: &'static str, label: &'static str) -> Backend {
     Backend {
         process,
@@ -249,8 +269,12 @@ const WALLPAPER_BACKENDS: &[Backend] = &[
 
 const BAR_BACKENDS: &[Backend] = &[
     backend("waybar", "waybar"),
+    backend("quickshell", "quickshell"),
     backend("ags", "ags"),
     backend("eww", "eww"),
+    backend("ironbar", "ironbar"),
+    backend("yambar", "yambar"),
+    backend("mypal", "mypal"),
 ];
 
 const LAUNCHER_BACKENDS: &[Backend] = &[
@@ -291,6 +315,13 @@ const LOCK_BACKENDS: &[Backend] = &[
     backend("gtklock", "gtklock"),
 ];
 
+const PICKER_BACKENDS: &[Backend] = &[
+    backend("hyprpicker", "hyprpicker"),
+    backend("gpick", "gpick"),
+    backend("xcolorpicker", "xcolorpicker"),
+    backend("wl-color-picker", "wl-color-picker"),
+];
+
 const PORTAL_BACKENDS: &[Backend] = &[
     passive_backend("xdg-desktop-portal-hypr", "portal"),
     passive_backend("xdg-desktop-portal-wlr", "portal"),
@@ -319,10 +350,11 @@ const TRAY_BACKENDS: &[Backend] = &[
 
 /// The first backend of a category that is running.
 fn pick_backend(backends: &[Backend], process_names: &HashSet<String>) -> Option<Backend> {
-    backends
-        .iter()
-        .copied()
-        .find(|backend| process_names.contains(backend.process))
+    backends.iter().copied().find(|backend| {
+        process_names
+            .iter()
+            .any(|process_name| backend.matches(process_name))
+    })
 }
 
 fn detect_ecosystem_info(process_names: &HashSet<String>) -> EcosystemInfo {
@@ -337,6 +369,7 @@ fn detect_ecosystem_info(process_names: &HashSet<String>) -> EcosystemInfo {
     let portal = pick_backend(PORTAL_BACKENDS, process_names);
     let polkit = pick_backend(POLKIT_BACKENDS, process_names);
     let tray = pick_backend(TRAY_BACKENDS, process_names);
+    let picker = pick_backend(PICKER_BACKENDS, process_names);
 
     // Reading a version starts a process per backend, so all probes run at
     // the same time instead of one after the other.
@@ -352,6 +385,7 @@ fn detect_ecosystem_info(process_names: &HashSet<String>) -> EcosystemInfo {
         portal,
         polkit,
         tray,
+        picker,
     ];
     let versions = probe_versions(&picks);
 
@@ -367,6 +401,7 @@ fn detect_ecosystem_info(process_names: &HashSet<String>) -> EcosystemInfo {
         portal: ecosystem_entry(portal, &versions),
         polkit: ecosystem_entry(polkit, &versions),
         tray: ecosystem_entry(tray, &versions),
+        picker: ecosystem_entry(picker, &versions),
     }
 }
 
@@ -444,18 +479,40 @@ fn detect_version(process: &str) -> Option<String> {
         if trimmed.is_empty() {
             continue;
         }
-        if let Some(rest) = trimmed.strip_prefix(process).filter(|r| !r.is_empty()) {
-            return Some(rest.trim().to_string());
-        }
-        if let Some(rest) = trimmed.strip_prefix(&format!("{process} ")) {
-            return Some(rest.to_string());
-        }
-        if let Some(rest) = trimmed.strip_prefix(&format!("{process} version ")) {
-            return rest.split_whitespace().next().map(str::to_string);
-        }
-        return Some(trimmed.to_string());
+
+        // Tools print their name in front of the version, sometimes in a
+        // different case, so drop it before looking for the number.
+        let rest = strip_name_prefix(trimmed, process)
+            .or_else(|| strip_name_prefix(trimmed, "version"))
+            .unwrap_or(trimmed)
+            .trim_start_matches([' ', ':', '='])
+            .trim();
+
+        return Some(match first_version_number(rest) {
+            Some(number) => number.to_string(),
+            None => rest.to_string(),
+        });
     }
     None
+}
+
+/// Remove a leading name from a version line, ignoring case.
+fn strip_name_prefix<'a>(line: &'a str, name: &str) -> Option<&'a str> {
+    let rest = line.get(..name.len())?;
+    if !rest.eq_ignore_ascii_case(name) {
+        return None;
+    }
+    Some(&line[name.len()..])
+}
+
+/// The first token that looks like a version number.
+fn first_version_number(text: &str) -> Option<&str> {
+    text.split_whitespace().find(|token| {
+        token
+            .strip_prefix('v')
+            .unwrap_or(token)
+            .starts_with(|character: char| character.is_ascii_digit())
+    })
 }
 
 #[cfg(test)]
@@ -463,7 +520,10 @@ mod tests {
     use std::collections::HashSet;
     use std::time::{Duration, Instant};
 
-    use super::{detect_ecosystem_info, parse_gtk_settings, with_timeout};
+    use super::{
+        detect_ecosystem_info, first_version_number, parse_gtk_settings, strip_name_prefix,
+        with_timeout,
+    };
 
     #[test]
     fn parses_gtk_settings() {
@@ -584,5 +644,43 @@ gtk-font-name=Noto Sans,  10
         let result = with_timeout(Duration::from_secs(5), || "version 1.2.3");
 
         assert_eq!(result, Some("version 1.2.3"));
+    }
+
+    #[test]
+    fn matches_a_process_name_the_kernel_truncated() {
+        let processes: HashSet<String> = ["xdg-desktop-por".to_string()].into_iter().collect();
+
+        let ecosystem = detect_ecosystem_info(&processes);
+        assert_eq!(
+            ecosystem.portal.as_ref().map(|(label, _)| label.as_str()),
+            Some("portal")
+        );
+    }
+
+    #[test]
+    fn does_not_match_a_process_name_that_is_merely_shorter() {
+        let processes: HashSet<String> = ["polkit".to_string()].into_iter().collect();
+
+        let ecosystem = detect_ecosystem_info(&processes);
+        assert!(ecosystem.polkit.is_none());
+    }
+
+    #[test]
+    fn strips_the_name_in_front_of_a_version() {
+        assert_eq!(
+            strip_name_prefix("Quickshell 0.3.2 (revision)", "quickshell"),
+            Some(" 0.3.2 (revision)")
+        );
+        assert_eq!(strip_name_prefix("2.17.2", "walker"), None);
+    }
+
+    #[test]
+    fn finds_the_version_number_in_a_version_line() {
+        assert_eq!(
+            first_version_number("0.3.2 (revision , distributed by Arch Linux)"),
+            Some("0.3.2")
+        );
+        assert_eq!(first_version_number("v1.2.3"), Some("v1.2.3"));
+        assert_eq!(first_version_number("no number here"), None);
     }
 }

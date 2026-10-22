@@ -71,6 +71,9 @@ impl Module for HyprEcosystemModule {
                 if let Some((label, _version)) = &ecosystem.tray {
                     rows.push(OutputRow::new("Tray", label));
                 }
+                if let Some((label, _version)) = &ecosystem.picker {
+                    rows.push(OutputRow::new("Picker", label));
+                }
 
                 ModuleOutput::ok(self.id(), rows, json!(ecosystem))
             }
@@ -124,6 +127,9 @@ pub fn summarize_ecosystem(ecosystem: &EcosystemInfo) -> String {
     if let Some((label, version)) = &ecosystem.tray {
         parts.push(format!("tray:{}", eco_display(label, version)));
     }
+    if let Some((label, version)) = &ecosystem.picker {
+        parts.push(format!("picker:{}", eco_display(label, version)));
+    }
     parts.join(" ")
 }
 
@@ -153,11 +159,12 @@ mod tests {
             portal: Some(("portal".to_string(), None)),
             polkit: Some(("polkit".to_string(), None)),
             tray: Some(("tray".to_string(), None)),
+            picker: Some(("hyprpicker".to_string(), None)),
         };
 
         assert_eq!(
             summarize_ecosystem(&ecosystem),
-            "wall:hyprpaper bar:waybar launch:fuzzel notify:mako clip:cliphist shot:grim idle:hypridle lock:hyprlock portal:portal polkit:polkit tray:tray"
+            "wall:hyprpaper bar:waybar launch:fuzzel notify:mako clip:cliphist shot:grim idle:hypridle lock:hyprlock portal:portal polkit:polkit tray:tray picker:hyprpicker"
         );
     }
 
