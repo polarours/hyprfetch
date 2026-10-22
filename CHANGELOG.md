@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The disk module called `statvfs`, which macOS does not have, so the macOS build never compiled
 - Reading the version of a detected backend could hang the run, because a backend that ignores `--version` never exits
 - Backends whose name is longer than 15 characters were never detected, because the kernel truncates a process name in the process list
+- An endpoint or option the running Hyprland does not know was reported as a JSON parse error, because hyprctl answers it with a plain message and a zero exit code
 
 ### Changed
 

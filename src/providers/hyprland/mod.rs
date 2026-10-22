@@ -112,6 +112,24 @@ fn hyprctl_preflight_error() -> Option<ProviderError> {
     None
 }
 
+/// The message hyprctl prints when it does not know a request.
+///
+/// It answers an unknown endpoint or an unknown option with a plain line and
+/// a zero exit code, so the JSON parser would otherwise report a confusing
+/// error instead of what hyprctl actually said.
+pub(super) fn hyprctl_message(raw: &str) -> Option<&str> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() || trimmed.starts_with('{') || trimmed.starts_with('[') {
+        return None;
+    }
+
+    // only a short single line is a message, not data
+    if trimmed.lines().count() > 1 {
+        return None;
+    }
+    Some(trimmed)
+}
+
 fn run_command_with_timeout(
     program: &str,
     args: &[&str],
@@ -251,6 +269,9 @@ impl HyprlandProvider {
     {
         let raw = self.runner.run("hyprctl", &["-j", endpoint])?;
         serde_json::from_str::<T>(&raw).map_err(|error| {
+            if let Some(message) = hyprctl_message(&raw) {
+                return ProviderError::command(format!("hyprctl {endpoint}: {message}"));
+            }
             ProviderError::parse(format!("failed to parse hyprctl {endpoint} JSON: {error}"))
         })
     }
@@ -289,6 +310,7 @@ mod tests {
     use super::HyprlandProvider;
     use super::MockRunner;
     use super::RealCommandRunner;
+    use super::hyprctl_message;
     use super::run_command_with_timeout;
     use super::*;
     use crate::providers::system::ProviderError;
@@ -426,5 +448,22 @@ mod tests {
     fn hyprctl_preflight_ignores_non_hyprctl_commands() {
         let runner = RealCommandRunner::default();
         assert!(runner.preflight_error("sleep").is_none());
+    }
+
+    #[test]
+    fn recognises_the_message_hyprctl_prints_for_an_unknown_request() {
+        assert_eq!(
+            hyprctl_message("unknown request\n"),
+            Some("unknown request")
+        );
+        assert_eq!(hyprctl_message("no such option\n"), Some("no such option"));
+    }
+
+    #[test]
+    fn does_not_treat_data_as_a_message() {
+        assert_eq!(hyprctl_message("{\"id\": 1}"), None);
+        assert_eq!(hyprctl_message("[1, 2]"), None);
+        assert_eq!(hyprctl_message(""), None);
+        assert_eq!(hyprctl_message("first line\nsecond line\n"), None);
     }
 }

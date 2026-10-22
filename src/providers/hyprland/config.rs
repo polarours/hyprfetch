@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::ProviderError;
+use super::hyprctl_message;
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct HyprBind {
@@ -59,6 +60,9 @@ impl HyprlandProvider {
     pub fn option(&self, name: &str) -> Result<HyprOption, ProviderError> {
         let raw = self.runner.run("hyprctl", &["-j", "getoption", name])?;
         serde_json::from_str::<HyprOption>(&raw).map_err(|error| {
+            if let Some(message) = hyprctl_message(&raw) {
+                return ProviderError::command(format!("hyprctl getoption {name}: {message}"));
+            }
             ProviderError::parse(format!(
                 "failed to parse hyprctl getoption {name} JSON: {error}"
             ))
