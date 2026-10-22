@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - An endpoint or option the running Hyprland does not know was reported as a JSON parse error, because hyprctl answers it with a plain message and a zero exit code
 - The workspace history module read a config option that no Hyprland version has, so it could never report anything
 - The split and column layouts rendered one character wider than the terminal, so the longest row wrapped
+- The SSID, signal and link speed of a wireless interface were missing on drivers that do not publish the wireless files in `/sys`, such as iwlwifi
 
 ### Changed
 

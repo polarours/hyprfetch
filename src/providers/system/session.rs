@@ -1,11 +1,16 @@
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use serde::Serialize;
 
 use super::ProviderError;
 use super::SystemProvider;
+use super::run_with_timeout;
+
+/// How long a wireless tool may take to answer.
+const WIFI_PROBE_TIMEOUT: Duration = Duration::from_millis(500);
 
 #[derive(Debug, Clone, Serialize)]
 pub struct NetworkInfo {
@@ -95,28 +100,120 @@ fn read_interface_ip(iface: &str) -> Option<String> {
 
 fn read_wifi_info(iface: &str) -> (Option<String>, Option<u8>, Option<u64>) {
     let wireless_path = Path::new("/sys/class/net").join(iface).join("wireless");
-    if !wireless_path.exists() {
-        return (None, None, None);
+    if wireless_path.exists() {
+        let ssid = fs::read_to_string(format!("/sys/class/net/{iface}/wireless/ssid"))
+            .ok()
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty());
+
+        let signal_percent = fs::read_to_string(format!("/sys/class/net/{iface}/wireless/link"))
+            .ok()
+            .and_then(|v| v.trim().parse::<u8>().ok())
+            .filter(|&v| v > 0)
+            .map(|v| (v as f64 / 70.0 * 100.0).min(100.0) as u8);
+
+        let speed_mbps = fs::read_to_string(format!("/sys/class/net/{iface}/speed"))
+            .ok()
+            .and_then(|v| v.trim().parse::<i64>().ok())
+            .filter(|&v| v > 0)
+            .map(|v| v as u64);
+
+        if ssid.is_some() || signal_percent.is_some() {
+            return (ssid, signal_percent, speed_mbps);
+        }
     }
 
-    let ssid = fs::read_to_string(format!("/sys/class/net/{iface}/wireless/ssid"))
-        .ok()
-        .map(|v| v.trim().to_string())
-        .filter(|v| !v.is_empty());
+    // Drivers such as iwlwifi do not publish the wireless files, so ask the
+    // tools that talk to the driver directly.
+    let (ssid, signal, speed) = read_iw_link(iface);
+    if ssid.is_some() || signal.is_some() {
+        return (ssid, signal, speed);
+    }
 
-    let signal_percent = fs::read_to_string(format!("/sys/class/net/{iface}/wireless/link"))
-        .ok()
-        .and_then(|v| v.trim().parse::<u8>().ok())
-        .filter(|&v| v > 0)
-        .map(|v| (v as f64 / 70.0 * 100.0).min(100.0) as u8);
+    read_iwconfig(iface)
+}
 
-    let speed_mbps = fs::read_to_string(format!("/sys/class/net/{iface}/speed"))
-        .ok()
-        .and_then(|v| v.trim().parse::<i64>().ok())
-        .filter(|&v| v > 0)
-        .map(|v| v as u64);
+/// The SSID, signal and link speed of an interface, read with `iw`.
+fn read_iw_link(iface: &str) -> (Option<String>, Option<u8>, Option<u64>) {
+    let Some(output) = run_with_timeout("iw", &["dev", iface, "link"], WIFI_PROBE_TIMEOUT) else {
+        return (None, None, None);
+    };
+    parse_iw_link(&output)
+}
 
-    (ssid, signal_percent, speed_mbps)
+/// The SSID, signal and link speed in the output of `iw dev <iface> link`.
+fn parse_iw_link(output: &str) -> (Option<String>, Option<u8>, Option<u64>) {
+    let mut ssid = None;
+    let mut signal = None;
+    let mut speed = None;
+    for line in output.lines() {
+        let line = line.trim();
+        if let Some(rest) = line.strip_prefix("SSID: ") {
+            let value = rest.trim();
+            if !value.is_empty() {
+                ssid = Some(value.to_string());
+            }
+        } else if let Some(rest) = line.strip_prefix("signal: ")
+            && let Some(dbm) = rest
+                .split_whitespace()
+                .next()
+                .and_then(|v| v.parse::<i32>().ok())
+        {
+            signal = Some(dbm_to_percent(dbm));
+        } else if let Some(rest) = line.strip_prefix("tx bitrate: ") {
+            speed = parse_link_speed(rest);
+        }
+    }
+
+    (ssid, signal, speed)
+}
+
+/// The SSID, signal and link speed of an interface, read with `iwconfig`.
+fn read_iwconfig(iface: &str) -> (Option<String>, Option<u8>, Option<u64>) {
+    let Some(output) = run_with_timeout("iwconfig", &[iface], WIFI_PROBE_TIMEOUT) else {
+        return (None, None, None);
+    };
+    parse_iwconfig(&output)
+}
+
+/// The SSID, signal and link speed in the output of `iwconfig <iface>`.
+fn parse_iwconfig(output: &str) -> (Option<String>, Option<u8>, Option<u64>) {
+    let mut ssid = None;
+    let mut signal = None;
+    let mut speed = None;
+    for line in output.lines() {
+        if let Some(rest) = line.split("ESSID:").nth(1) {
+            let value = rest.trim().trim_matches('"');
+            if !value.is_empty() {
+                ssid = Some(value.to_string());
+            }
+        } else if let Some(rest) = line.split("Link Quality=").nth(1)
+            && let Some((quality, max)) = rest.split_once('/')
+            && let Some(quality) = quality.trim().parse::<u64>().ok()
+            && let Some(max) = max
+                .split_whitespace()
+                .next()
+                .and_then(|value| value.parse::<u64>().ok())
+            && max > 0
+        {
+            signal = Some((quality as f64 / max as f64 * 100.0).min(100.0) as u8);
+        } else if let Some(rest) = line.split("Bit Rate=").nth(1) {
+            speed = parse_link_speed(rest);
+        }
+    }
+
+    (ssid, signal, speed)
+}
+
+/// A signal level in dBm as a percentage.
+fn dbm_to_percent(dbm: i32) -> u8 {
+    ((dbm + 100) * 2).clamp(0, 100) as u8
+}
+
+/// A link speed such as `144.4 Mb/s` in megabits per second.
+fn parse_link_speed(text: &str) -> Option<u64> {
+    let value = text.split_whitespace().next()?;
+    value.parse::<f64>().ok().map(|value| value.round() as u64)
 }
 
 fn parse_ip_addr_output(output: &str) -> Option<String> {
@@ -365,5 +462,45 @@ mod tests {
     fn parses_ip_addr_returns_none_on_empty() {
         assert_eq!(parse_ip_addr_output(""), None);
         assert_eq!(parse_ip_addr_output("no interfaces found"), None);
+    }
+
+    #[test]
+    fn reads_the_wifi_details_from_iw() {
+        let output = "Connected to 16:74:9c:41:f2:2b (on wlan0)\n\tSSID: UPC\n\tfreq: 5765.00 MHz\n\tsignal: -46 dBm\n\ttx bitrate: 144.4 MBit/s\n";
+        let (ssid, signal, speed) = parse_iw_link(output);
+
+        assert_eq!(ssid.as_deref(), Some("UPC"));
+        assert_eq!(signal, Some(100));
+        assert_eq!(speed, Some(144));
+    }
+
+    #[test]
+    fn reads_the_wifi_details_from_iwconfig() {
+        let output = "wlan0     IEEE 802.11  ESSID:\"UPC\"  \n          Mode:Managed  Frequency:5.765 GHz  \n          Bit Rate=144.4 Mb/s   Tx-Power=20 dBm   \n          Link Quality=64/70  Signal level=-46 dBm  \n";
+        let (ssid, signal, speed) = parse_iwconfig(output);
+
+        assert_eq!(ssid.as_deref(), Some("UPC"));
+        assert_eq!(signal, Some(91));
+        assert_eq!(speed, Some(144));
+    }
+
+    #[test]
+    fn ignores_a_wireless_tool_that_reports_nothing() {
+        assert_eq!(parse_iw_link(""), (None, None, None));
+        assert_eq!(parse_iwconfig(""), (None, None, None));
+    }
+
+    #[test]
+    fn turns_a_signal_level_into_a_percentage() {
+        assert_eq!(dbm_to_percent(-46), 100);
+        assert_eq!(dbm_to_percent(-70), 60);
+        assert_eq!(dbm_to_percent(-100), 0);
+    }
+
+    #[test]
+    fn reads_a_link_speed() {
+        assert_eq!(parse_link_speed("144.4 Mb/s"), Some(144));
+        assert_eq!(parse_link_speed("1.0 Mb/s"), Some(1));
+        assert_eq!(parse_link_speed("not a speed"), None);
     }
 }

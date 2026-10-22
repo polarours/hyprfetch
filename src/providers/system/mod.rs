@@ -6,7 +6,10 @@
 
 use std::fs;
 use std::path::PathBuf;
+use std::process::{Command, Stdio};
 use std::sync::OnceLock;
+use std::thread;
+use std::time::{Duration, Instant};
 
 use thiserror::Error;
 
@@ -71,6 +74,41 @@ impl SystemProvider {
         let cpu_baseline = OnceLock::new();
         let _ = cpu_baseline.set(cpu::read_cpu_baseline());
         Self { cpu_baseline }
+    }
+}
+
+/// Runs a command and gives up on it after `timeout`.
+///
+/// A driver that does not answer must not be able to hang the whole run.
+pub(super) fn run_with_timeout(program: &str, args: &[&str], timeout: Duration) -> Option<String> {
+    let mut child = Command::new(program)
+        .args(args)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .ok()?;
+
+    let started = Instant::now();
+    loop {
+        match child.try_wait() {
+            Ok(Some(_)) => {
+                let output = child.wait_with_output().ok()?;
+                if !output.status.success() {
+                    return None;
+                }
+                return Some(String::from_utf8_lossy(&output.stdout).to_string());
+            }
+            Ok(None) => {}
+            Err(_) => return None,
+        }
+
+        if started.elapsed() >= timeout {
+            let _ = child.kill();
+            let _ = child.wait();
+            return None;
+        }
+
+        thread::sleep(Duration::from_millis(10));
     }
 }
 

@@ -364,7 +364,7 @@ timeout_ms = 1000
 - `/var/lib/pacman/local`
 - `/var/lib/dpkg/status`
 - `/sys/class/power_supply`
-- `/proc/net/route`, `ip` command for network detection
+- `/proc/net/route`, `ip` command for network detection, and `iw` or `iwconfig` for the SSID, signal and link speed of a wireless interface
 - PipeWire/PulseAudio runtime sockets and the `wpctl` and `pactl` commands for audio detection
 - environment variables, including Hyprland runtime variables and socket paths
 - Hyprland runtime instance directories under `$XDG_RUNTIME_DIR/hypr`
