@@ -157,10 +157,10 @@ fn starts_with_vendor(model: &str, vendor: &str) -> bool {
 fn read_gpu_usage(
     vendor: &str,
     card_path: &Path,
-    nvidia_usages: &HashMap<String, f64>,
+    nvidia_gpus: &HashMap<String, NvidiaGpu>,
 ) -> Option<f64> {
     if vendor.eq_ignore_ascii_case("nvidia") {
-        return nvidia_gpu_usage(card_path, nvidia_usages);
+        return nvidia_gpu_usage(card_path, nvidia_gpus);
     }
     if vendor.eq_ignore_ascii_case("amd") || vendor.eq_ignore_ascii_case("advanced micro devices") {
         return read_amd_gpu_usage(card_path);
@@ -171,32 +171,67 @@ fn read_gpu_usage(
     None
 }
 
+/// What nvidia-smi reports about one device.
+#[derive(Debug, Clone, Copy)]
+struct NvidiaGpu {
+    usage_percent: f64,
+    memory_total_mib: Option<u64>,
+}
+
 /// Utilisation of a single NVIDIA device, matched by PCI bus id.
-fn nvidia_gpu_usage(card_path: &Path, nvidia_usages: &HashMap<String, f64>) -> Option<f64> {
-    match_nvidia_usage(drm_pci_bus_id(card_path).as_deref(), nvidia_usages)
+fn nvidia_gpu_usage(card_path: &Path, nvidia_gpus: &HashMap<String, NvidiaGpu>) -> Option<f64> {
+    match_nvidia_usage(drm_pci_bus_id(card_path).as_deref(), nvidia_gpus)
+}
+
+/// The amount of memory of a single NVIDIA device, matched by PCI bus id.
+fn nvidia_gpu_memory(card_path: &Path, nvidia_gpus: &HashMap<String, NvidiaGpu>) -> Option<u64> {
+    match_nvidia_memory(drm_pci_bus_id(card_path).as_deref(), nvidia_gpus)
 }
 
 /// Match a reported NVIDIA utilisation against a device.
-fn match_nvidia_usage(bus_id: Option<&str>, nvidia_usages: &HashMap<String, f64>) -> Option<f64> {
+fn match_nvidia_usage(
+    bus_id: Option<&str>,
+    nvidia_gpus: &HashMap<String, NvidiaGpu>,
+) -> Option<f64> {
     if let Some(bus_id) = bus_id
-        && let Some(usage) = nvidia_usages.get(bus_id)
+        && let Some(gpu) = nvidia_gpus.get(bus_id)
     {
-        return Some(*usage);
+        return Some(gpu.usage_percent);
     }
 
     // Fall back to the only reported value when the bus ids cannot be matched,
     // for example because nvidia-smi reports a different domain width.
-    match nvidia_usages.len() {
-        1 => nvidia_usages.values().next().copied(),
+    match nvidia_gpus.len() {
+        1 => nvidia_gpus.values().next().map(|gpu| gpu.usage_percent),
         _ => None,
     }
 }
 
-/// Utilisation of every NVIDIA device, keyed by PCI bus id.
-fn read_nvidia_gpu_usages() -> HashMap<String, f64> {
+/// Match the reported amount of memory against a device.
+fn match_nvidia_memory(
+    bus_id: Option<&str>,
+    nvidia_gpus: &HashMap<String, NvidiaGpu>,
+) -> Option<u64> {
+    if let Some(bus_id) = bus_id
+        && let Some(gpu) = nvidia_gpus.get(bus_id)
+    {
+        return gpu.memory_total_mib;
+    }
+
+    match nvidia_gpus.len() {
+        1 => nvidia_gpus
+            .values()
+            .next()
+            .and_then(|gpu| gpu.memory_total_mib),
+        _ => None,
+    }
+}
+
+/// Every NVIDIA device, keyed by PCI bus id.
+fn read_nvidia_gpus() -> HashMap<String, NvidiaGpu> {
     let Ok(output) = std::process::Command::new("nvidia-smi")
         .args([
-            "--query-gpu=pci.bus_id,utilization.gpu",
+            "--query-gpu=pci.bus_id,utilization.gpu,memory.total",
             "--format=csv,noheader,nounits",
         ])
         .output()
@@ -214,7 +249,16 @@ fn read_nvidia_gpu_usages() -> HashMap<String, f64> {
             let mut fields = line.split(',');
             let bus_id = fields.next()?.trim();
             let usage = fields.next()?.trim().parse::<f64>().ok()?;
-            Some((normalize_pci_bus_id(bus_id), usage))
+            let memory = fields
+                .next()
+                .and_then(|value| value.trim().parse::<u64>().ok());
+            Some((
+                normalize_pci_bus_id(bus_id),
+                NvidiaGpu {
+                    usage_percent: usage,
+                    memory_total_mib: memory,
+                },
+            ))
         })
         .collect()
 }
@@ -328,12 +372,19 @@ impl SystemProvider {
         }
 
         // Query the vendor tool once for the whole run instead of once per GPU.
-        let nvidia_usages = read_nvidia_gpu_usages();
+        let nvidia_gpus = read_nvidia_gpus();
 
         Ok(gpus
             .into_iter()
             .map(|(vendor, device_id, model, vram_mib, card_path)| {
-                let usage_percent = read_gpu_usage(&vendor, &card_path, &nvidia_usages);
+                let usage_percent = read_gpu_usage(&vendor, &card_path, &nvidia_gpus);
+                // nvidia-smi knows how much memory the card has; the size of
+                // the PCI bar is not the amount of video memory
+                let vram_mib = if vendor.eq_ignore_ascii_case("nvidia") {
+                    nvidia_gpu_memory(&card_path, &nvidia_gpus).or(vram_mib)
+                } else {
+                    vram_mib
+                };
                 GpuInfo {
                     vendor,
                     device_id,
@@ -389,26 +440,67 @@ mod tests {
 
     #[test]
     fn matches_nvidia_usage_by_bus_id() {
-        let mut usages = HashMap::new();
-        usages.insert("00000000:01:00.0".to_string(), 12.0);
-        usages.insert("00000000:02:00.0".to_string(), 34.0);
+        let gpus = nvidia_gpus(&[
+            ("00000000:01:00.0", 12.0, Some(4096)),
+            ("00000000:02:00.0", 34.0, Some(8188)),
+        ]);
 
         assert_eq!(
-            match_nvidia_usage(Some("00000000:02:00.0"), &usages),
+            match_nvidia_usage(Some("00000000:02:00.0"), &gpus),
             Some(34.0)
         );
-        assert_eq!(match_nvidia_usage(Some("00000000:03:00.0"), &usages), None);
+        assert_eq!(match_nvidia_usage(Some("00000000:03:00.0"), &gpus), None);
     }
 
     #[test]
     fn falls_back_to_the_only_nvidia_usage() {
-        let mut usages = HashMap::new();
-        usages.insert("00000000:01:00.0".to_string(), 12.0);
+        let gpus = nvidia_gpus(&[("00000000:01:00.0", 12.0, Some(4096))]);
 
         assert_eq!(
-            match_nvidia_usage(Some("00000000:09:00.0"), &usages),
+            match_nvidia_usage(Some("00000000:09:00.0"), &gpus),
             Some(12.0)
         );
-        assert_eq!(match_nvidia_usage(None, &usages), Some(12.0));
+        assert_eq!(match_nvidia_usage(None, &gpus), Some(12.0));
+    }
+
+    #[test]
+    fn matches_the_nvidia_memory_by_bus_id() {
+        let gpus = nvidia_gpus(&[
+            ("00000000:01:00.0", 12.0, Some(4096)),
+            ("00000000:02:00.0", 34.0, Some(8188)),
+        ]);
+
+        assert_eq!(
+            match_nvidia_memory(Some("00000000:02:00.0"), &gpus),
+            Some(8188)
+        );
+        assert_eq!(match_nvidia_memory(Some("00000000:03:00.0"), &gpus), None);
+    }
+
+    #[test]
+    fn falls_back_to_the_only_nvidia_memory() {
+        let gpus = nvidia_gpus(&[("00000000:01:00.0", 12.0, Some(4096))]);
+
+        assert_eq!(
+            match_nvidia_memory(Some("00000000:09:00.0"), &gpus),
+            Some(4096)
+        );
+        assert_eq!(match_nvidia_memory(None, &gpus), Some(4096));
+    }
+
+    /// The nvidia-smi output of a card, for the tests above.
+    fn nvidia_gpus(entries: &[(&str, f64, Option<u64>)]) -> HashMap<String, NvidiaGpu> {
+        entries
+            .iter()
+            .map(|(bus_id, usage, memory)| {
+                (
+                    (*bus_id).to_string(),
+                    NvidiaGpu {
+                        usage_percent: *usage,
+                        memory_total_mib: *memory,
+                    },
+                )
+            })
+            .collect()
     }
 }
