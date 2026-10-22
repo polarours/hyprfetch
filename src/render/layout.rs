@@ -42,7 +42,8 @@ pub(super) fn render_text_with_width(
                 .max()
                 .unwrap_or(0);
             let split_padding = runtime.appearance.padding + 1;
-            let split_base_width = logo_width + split_padding + key_width + separator_width;
+            // the split layout writes the key with a colon behind it
+            let split_base_width = logo_width + split_padding + key_width + 1 + separator_width;
 
             if has_split_space(terminal_width, split_base_width) {
                 return render_split(
@@ -69,13 +70,14 @@ pub(super) fn render_text_with_width(
     }
 
     let key_width = max_key_width(&rows);
+    let key_suffix_width = usize::from(!runtime.is_plain());
     if has_column_space(terminal_width, key_width, separator_width) {
         return render_column(
             rows,
             runtime,
             colors_enabled,
             key_width,
-            column_value_width(terminal_width, key_width, separator_width),
+            column_value_width(terminal_width, key_width, key_suffix_width, separator_width),
         );
     }
 
@@ -106,7 +108,8 @@ pub(super) fn render_split(
         InfoRenderOptions {
             key_width,
             value_width,
-            max_line_width: right_width,
+            // the title is indented by one against the keys
+            max_line_width: right_width.and_then(|width| width.checked_sub(1)),
             include_header: true,
         },
     );
@@ -160,7 +163,8 @@ fn render_column(
         InfoRenderOptions {
             key_width,
             value_width,
-            max_line_width: right_width,
+            // the title is indented by one against the keys
+            max_line_width: right_width.and_then(|width| width.checked_sub(1)),
             include_header: !runtime.is_plain(),
         },
     )
@@ -368,9 +372,11 @@ fn split_value_width(terminal_width: Option<usize>, split_base_width: usize) -> 
 fn column_value_width(
     terminal_width: Option<usize>,
     key_width: usize,
+    key_suffix_width: usize,
     separator_width: usize,
 ) -> Option<usize> {
-    terminal_width.and_then(|width| width.checked_sub(key_width + separator_width))
+    terminal_width
+        .and_then(|width| width.checked_sub(key_width + key_suffix_width + separator_width))
 }
 
 fn truncate_row_value(value: &str, value_width: Option<usize>) -> String {
@@ -588,5 +594,50 @@ mod tests {
             .map(|output| output.id.as_str())
             .collect::<Vec<_>>();
         assert_eq!(ids, vec!["os", "theme"]);
+    }
+
+    /// The rendered lines never reach past the terminal width.
+    #[test]
+    fn keeps_every_line_inside_the_terminal_width() {
+        let runtime = RuntimeConfig {
+            appearance: AppearanceConfig {
+                style: RenderStyle::Split,
+                palette: PaletteName::Hypr,
+                color: ColorMode::Never,
+                plain: false,
+                color_bars: false,
+                padding: 1,
+                separator: "  ".to_string(),
+            },
+            logo: LogoPreset::Arch,
+            resolved_logo: LogoPreset::Arch,
+            modules: vec![ModuleConfig::from(ModuleId::Os)],
+            plugins: Vec::new(),
+            json: false,
+            diagnostics: false,
+            animated: false,
+            watch: false,
+            watch_interval: 1,
+        };
+
+        let outputs = vec![ModuleOutput::ok(
+            ModuleId::Os,
+            vec![OutputRow::new(
+                "Ecosystem",
+                "bar:quickshell (0.3.2) launch:walker (2.17.2) notify:swaync (0.12.6)",
+            )],
+            json!({}),
+        )];
+
+        for width in [40, 60, 80, 120, 200] {
+            let rendered = render_text_with_width(&outputs, &runtime, Some(width));
+            for line in rendered.lines() {
+                assert!(
+                    UnicodeWidthStr::width(line) <= width,
+                    "line is {} wide, the terminal is {width}: {line}",
+                    UnicodeWidthStr::width(line)
+                );
+            }
+        }
     }
 }

@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Backends whose name is longer than 15 characters were never detected, because the kernel truncates a process name in the process list
 - An endpoint or option the running Hyprland does not know was reported as a JSON parse error, because hyprctl answers it with a plain message and a zero exit code
 - The workspace history module read a config option that no Hyprland version has, so it could never report anything
+- The split and column layouts rendered one character wider than the terminal, so the longest row wrapped
 
 ### Changed
 
@@ -41,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The system modules are split per domain: basics, hardware, storage and session
 - The configuration is split into the types, the shipped defaults, loading the file and merging it with the command line
 - The disk module reports its numbers under `disks` in the JSON output instead of at the top level, because it can now report more than one mount point
+- The share preset now shows the desktop, not only the machine: the theme, the wallpaper backend, the ecosystem, the active window, the workspaces, the monitors and the input devices
 - The logo catalogue is generated from a single table, so adding a logo no longer needs changes in several places
 - Ecosystem versions are read in parallel instead of one backend after the other, and each probe is given up on after 500ms
 - Selecting modules with `--modules` or `--share` keeps the options configured for them instead of discarding them

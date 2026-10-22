@@ -10,7 +10,7 @@ Unlike generic fetch tools, it treats Hyprland runtime data as first-class outpu
 - Hyprland modules: version, health summary, runtime instance summary, current splash, active workspace, focused monitor and session summary, workspace history, workspace list with active/special/fullscreen state, active window state, cursor position, monitor summary, config health, workspace rules, input summary, keybind summary, global shortcut summary, layout summary, layer-shell surface summary, hypr-rice (layout, gaps, border, rounding, blur, animations)
 - Rice modules: GTK theme, icon theme, cursor theme, font, wallpaper backend
 - Ecosystem detection: wallpaper, bar, launcher, notification, clipboard, screenshot, idle, lock, portal, polkit, tray and colour picker daemons (with version info) when present
-- Output modes: styled split layout, plain mode, minimal mode, JSON mode, diagnostics mode, configurable module order, width-aware layout fallback for narrow terminals, share preset for rice screenshots, `--watch` continuous refresh mode
+- Output modes: styled split layout, plain mode, minimal mode, JSON mode, diagnostics mode, configurable module order, width-aware layout fallback for narrow terminals, share preset that leads with the theme and the live session state, `--watch` continuous refresh mode
 - Customization: TOML-driven module order, per-module options, user-defined display labels, and command plugins
 - Palettes: hypr, mono, catppuccin, dracula
 - Logo system: bundled distro-aware text logos stored in `assets/logos/`, with `os-release` auto detection, family fallback, and explicit override support (213 built-in presets)

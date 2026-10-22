@@ -345,6 +345,18 @@ fn renders_share_preset() {
 }
 
 #[test]
+fn the_share_preset_shows_the_desktop_not_only_the_machine() {
+    Command::cargo_bin("hyprfetch")
+        .unwrap()
+        .args(["--share", "--color", "never"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Theme"))
+        .stdout(predicate::str::contains("Workspaces"))
+        .stdout(predicate::str::contains("Monitors"));
+}
+
+#[test]
 fn renders_minimal_style() {
     Command::cargo_bin("hyprfetch")
         .unwrap()

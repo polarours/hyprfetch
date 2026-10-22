@@ -92,7 +92,13 @@ pub fn merge(cli: &CliArgs, config: AppConfig) -> RuntimeConfig {
     }
 }
 
+/// The modules the share preset shows.
+///
+/// A rice screenshot is about the desktop, so the preset leads with the
+/// theme and the ecosystem and closes with the live session state, not with
+/// the machine alone.
 const SHARE_PRESET_MODULES: &[ModuleId] = &[
+    // the machine
     ModuleId::Os,
     ModuleId::Host,
     ModuleId::Kernel,
@@ -104,9 +110,16 @@ const SHARE_PRESET_MODULES: &[ModuleId] = &[
     ModuleId::Gpu,
     ModuleId::Memory,
     ModuleId::Disk,
-    ModuleId::Network,
-    ModuleId::Audio,
+    // the rice
     ModuleId::Theme,
+    ModuleId::Wallpaper,
+    ModuleId::HyprEcosystem,
+    // the session
+    ModuleId::Hyprland,
+    ModuleId::HyprActiveWindow,
+    ModuleId::HyprWorkspaces,
+    ModuleId::HyprMonitors,
+    ModuleId::HyprDevices,
 ];
 
 #[cfg(test)]
