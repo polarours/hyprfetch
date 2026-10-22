@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The split and column layouts rendered one character wider than the terminal, so the longest row wrapped
 - The SSID, signal and link speed of a wireless interface were missing on drivers that do not publish the wireless files in `/sys`, such as iwlwifi
 - The amount of video memory of an NVIDIA card came from the size of a PCI bar, so a card with 8 GiB of memory was reported as having 16 MiB
+- The default audio sink was never reported, because the parser of the `wpctl` output skipped every line
 
 ### Changed
 
