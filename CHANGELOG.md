@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The system provider is split per domain as well: os, cpu, memory, storage, graphics and session
 - The Hyprland provider is split per domain too: session, workspace, window, display, input and config
 - The renderer is split into the layout, the styling and the public entry points
+- The system modules are split per domain: basics, hardware, storage and session
 - The logo catalogue is generated from a single table, so adding a logo no longer needs changes in several places
 - Ecosystem versions are read in parallel instead of one backend after the other, and each probe is given up on after 500ms
 - Selecting modules with `--modules` or `--share` keeps the options configured for them instead of discarding them
