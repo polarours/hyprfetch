@@ -1,100 +1,22 @@
-use std::env;
-use std::fs;
-use std::io::{self, IsTerminal};
-
-use anyhow::Result;
-use owo_colors::OwoColorize;
+use crate::config::RuntimeConfig;
+use crate::logo::{self};
+use crate::model::{ModuleOutput, OutputRow, RenderStyle};
+use crate::util::truncate_visible;
 use unicode_width::UnicodeWidthStr;
 
-use crate::config::RuntimeConfig;
-use crate::logo::{self, LogoTone};
-use crate::model::{
-    ColorMode, ModuleId, ModuleOutput, ModuleStatus, OutputRow, PaletteName, RenderStyle,
+use super::style::color_bar;
+use super::style::colors_enabled;
+use super::style::style_key;
+use super::style::style_logo;
+use super::style::style_rule;
+use super::style::style_title;
+use super::style::style_value;
+use super::{
+    DENSE_PRIORITY_WIDTH, DENSE_SEPARATOR, InfoRenderOptions, MIN_COLUMN_VALUE_WIDTH,
+    MIN_SPLIT_VALUE_WIDTH, RenderRow, header_title, header_width, output_label, output_priority,
 };
-use crate::util::truncate_visible;
 
-const MIN_SPLIT_VALUE_WIDTH: usize = 24;
-const MIN_COLUMN_VALUE_WIDTH: usize = 20;
-const DENSE_PRIORITY_WIDTH: usize = 24;
-const DENSE_SEPARATOR: &str = " ";
-const DEFAULT_HEADER_WIDTH: usize = 40;
-const MAX_HEADER_WIDTH: usize = 44;
-const MIN_HEADER_WIDTH: usize = 8;
-
-#[derive(Debug, Clone)]
-struct RenderRow {
-    key: String,
-    value: String,
-    status: ModuleStatus,
-}
-
-#[derive(Debug, Clone, Copy)]
-struct InfoRenderOptions {
-    key_width: usize,
-    value_width: Option<usize>,
-    max_line_width: Option<usize>,
-    include_header: bool,
-}
-
-pub fn render(outputs: &[ModuleOutput], runtime: &RuntimeConfig) -> Result<String> {
-    if runtime.diagnostics {
-        return Ok(render_diagnostics(outputs));
-    }
-
-    if runtime.json {
-        return render_json(outputs);
-    }
-
-    Ok(render_text(outputs, runtime))
-}
-
-pub fn render_json(outputs: &[ModuleOutput]) -> Result<String> {
-    let rendered = serde_json::to_string_pretty(outputs)?;
-    Ok(format!("{rendered}\n"))
-}
-
-pub fn render_diagnostics(outputs: &[ModuleOutput]) -> String {
-    let mut output = String::new();
-    output.push_str("hyprfetch diagnostics\n");
-
-    let ok_count = outputs
-        .iter()
-        .filter(|output| output.status == ModuleStatus::Ok)
-        .count();
-    let partial_count = outputs
-        .iter()
-        .filter(|output| output.status == ModuleStatus::Partial)
-        .count();
-    let unavailable_count = outputs
-        .iter()
-        .filter(|output| output.status == ModuleStatus::Unavailable)
-        .count();
-
-    output.push_str(&format!(
-        "summary: {ok_count} ok, {partial_count} partial, {unavailable_count} unavailable\n"
-    ));
-
-    for output_item in outputs {
-        let status = match output_item.status {
-            ModuleStatus::Ok => "ok",
-            ModuleStatus::Partial => "partial",
-            ModuleStatus::Unavailable => "unavailable",
-        };
-        output.push_str(&format!("{}: {status}", output_item.id));
-        if let Some(message) = output_item.message.as_deref() {
-            output.push_str(&format!(" - {message}"));
-        }
-        output.push('\n');
-    }
-
-    output
-}
-
-pub fn render_text(outputs: &[ModuleOutput], runtime: &RuntimeConfig) -> String {
-    render_text_with_width(outputs, runtime, detect_terminal_width())
-}
-
-fn render_text_with_width(
+pub(super) fn render_text_with_width(
     outputs: &[ModuleOutput],
     runtime: &RuntimeConfig,
     terminal_width: Option<usize>,
@@ -160,7 +82,7 @@ fn render_text_with_width(
     render_dense(rows, runtime, colors_enabled, terminal_width)
 }
 
-fn render_split(
+pub(super) fn render_split(
     rows: Vec<RenderRow>,
     raw_logo: Vec<String>,
     runtime: &RuntimeConfig,
@@ -416,60 +338,6 @@ fn dense_priority_ceiling(terminal_width: Option<usize>) -> Option<usize> {
     }
 }
 
-fn output_priority(id: &str) -> usize {
-    let Ok(id) = id.parse::<ModuleId>() else {
-        return 1;
-    };
-
-    match id {
-        ModuleId::Os
-        | ModuleId::Host
-        | ModuleId::Kernel
-        | ModuleId::Uptime
-        | ModuleId::Packages
-        | ModuleId::Memory
-        | ModuleId::Hyprland
-        | ModuleId::HyprHealth
-        | ModuleId::HyprInstances
-        | ModuleId::HyprActiveWindow
-        | ModuleId::HyprCursor
-        | ModuleId::HyprWorkspaceHistory
-        | ModuleId::HyprWorkspaces
-        | ModuleId::HyprMonitors => 0,
-        ModuleId::Shell
-        | ModuleId::Terminal
-        | ModuleId::Cpu
-        | ModuleId::Theme
-        | ModuleId::HyprRice
-        | ModuleId::HyprConfig
-        | ModuleId::HyprRules => 1,
-        ModuleId::Gpu
-        | ModuleId::Swap
-        | ModuleId::Disk
-        | ModuleId::Battery
-        | ModuleId::Locale
-        | ModuleId::Network
-        | ModuleId::Temperature
-        | ModuleId::Audio
-        | ModuleId::Datetime
-        | ModuleId::Colorscheme
-        | ModuleId::Wallpaper
-        | ModuleId::HyprEcosystem
-        | ModuleId::HyprSplash
-        | ModuleId::HyprDevices
-        | ModuleId::HyprBinds
-        | ModuleId::HyprShortcuts
-        | ModuleId::HyprLayouts
-        | ModuleId::HyprLayers => 2,
-    }
-}
-
-fn output_label(id: &str) -> String {
-    id.parse::<ModuleId>()
-        .map(|module| module.label().to_string())
-        .unwrap_or_else(|_| id.to_string())
-}
-
 fn max_key_width(rows: &[RenderRow]) -> usize {
     rows.iter()
         .map(|row| UnicodeWidthStr::width(row.key.as_str()))
@@ -512,219 +380,15 @@ fn truncate_row_value(value: &str, value_width: Option<usize>) -> String {
     }
 }
 
-fn header_title() -> Option<String> {
-    let user = env::var("USER")
-        .or_else(|_| env::var("USERNAME"))
-        .ok()
-        .filter(|value| !value.trim().is_empty());
-    let host = fs::read_to_string("/proc/sys/kernel/hostname")
-        .ok()
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty())
-        .or_else(|| {
-            env::var("HOSTNAME")
-                .ok()
-                .filter(|value| !value.trim().is_empty())
-        });
-
-    match (user, host) {
-        (Some(user), Some(host)) => Some(format!("{user}@{host}")),
-        (Some(user), None) => Some(user),
-        (None, Some(host)) => Some(host),
-        (None, None) => None,
-    }
-}
-
-fn header_width(title: &str, max_line_width: Option<usize>) -> usize {
-    let max_width = max_line_width
-        .unwrap_or(DEFAULT_HEADER_WIDTH)
-        .clamp(MIN_HEADER_WIDTH, MAX_HEADER_WIDTH);
-    UnicodeWidthStr::width(title).clamp(MIN_HEADER_WIDTH, max_width)
-}
-
-fn detect_terminal_width() -> Option<usize> {
-    query_terminal_width().or_else(|| {
-        env::var("COLUMNS")
-            .ok()
-            .and_then(|value| value.parse::<usize>().ok())
-            .filter(|width| *width > 0)
-    })
-}
-
-#[cfg(unix)]
-fn query_terminal_width() -> Option<usize> {
-    use libc::{STDOUT_FILENO, TIOCGWINSZ, ioctl, winsize};
-
-    if !io::stdout().is_terminal() {
-        return None;
-    }
-
-    let mut size = winsize {
-        ws_row: 0,
-        ws_col: 0,
-        ws_xpixel: 0,
-        ws_ypixel: 0,
-    };
-    let result = unsafe { ioctl(STDOUT_FILENO, TIOCGWINSZ, &mut size) };
-    (result == 0 && size.ws_col > 0).then_some(size.ws_col as usize)
-}
-
-#[cfg(not(unix))]
-fn query_terminal_width() -> Option<usize> {
-    None
-}
-
-fn colors_enabled(mode: ColorMode) -> bool {
-    match mode {
-        ColorMode::Always => true,
-        ColorMode::Never => false,
-        ColorMode::Auto => io::stdout().is_terminal() && env::var_os("NO_COLOR").is_none(),
-    }
-}
-
-fn style_key(value: &str, _palette: PaletteName, colors_enabled: bool) -> String {
-    if !colors_enabled {
-        return value.to_string();
-    }
-
-    // 使用 Tokyo Night 风格的柔和色调
-    let color = match value {
-        "OS" | "Host" | "Kernel" => "\x1b[38;5;110m", // #7aa2f7 柔蓝
-        "Uptime" | "Shell" | "Terminal" => "\x1b[38;5;180m", // #e0af68 柔金
-        "CPU" | "GPU" | "Memory" | "Disk" => "\x1b[38;5;114m", // #9ece6a 柔绿
-        "Battery" | "Locale" => "\x1b[38;5;141m",     // #bb9af7 柔紫
-        "Network" | "Temperature" | "Audio" => "\x1b[38;5;111m", // #7dcfff 柔青
-        "Hyprland" | "Workspace" | "Clients" | "Focused" => "\x1b[38;5;140m", // #c0a7d6 柔薰衣草
-        "Session" | "Window" | "Workspaces" | "Monitors" => "\x1b[38;5;181m", // #ff9e64 柔橘
-        "Theme" | "Ecosystem" | "Input" | "Colors" => "\x1b[38;5;175m", // #f7768e 柔粉
-        _ => "\x1b[38;5;243m",                        // #565f89 柔灰
-    };
-
-    format!("{}{}\x1b[0m", color, value)
-}
-
-fn style_value(
-    value: &str,
-    status: ModuleStatus,
-    palette: PaletteName,
-    colors_enabled: bool,
-) -> String {
-    if !colors_enabled {
-        return value.to_string();
-    }
-
-    // 使用 Tokyo Night 风格的柔和色调
-    match (palette, status) {
-        (_, ModuleStatus::Unavailable) => format!("\x1b[38;5;243m{}\x1b[0m", value), // 柔灰
-        (_, ModuleStatus::Partial) => format!("\x1b[38;5;215m{}\x1b[0m", value),     // 柔橙
-        (PaletteName::Hypr, ModuleStatus::Ok) => format!("\x1b[38;5;252m{}\x1b[0m", value), // 亮白灰
-        (PaletteName::Mono, ModuleStatus::Ok) => value.to_string(),
-        (PaletteName::Catppuccin, ModuleStatus::Ok) => format!("\x1b[38;5;109m{}\x1b[0m", value), // 柔青
-        (PaletteName::Dracula, ModuleStatus::Ok) => format!("\x1b[38;5;114m{}\x1b[0m", value), // 柔绿
-    }
-}
-
-fn style_title(value: &str, palette: PaletteName, colors_enabled: bool) -> String {
-    if !colors_enabled {
-        return value.to_string();
-    }
-
-    match palette {
-        PaletteName::Hypr => format!("\x1b[38;5;255m{}\x1b[0m", value),
-        PaletteName::Mono => value.bold().to_string(),
-        PaletteName::Catppuccin => format!("\x1b[38;5;255m{}\x1b[0m", value),
-        PaletteName::Dracula => format!("\x1b[38;5;255m{}\x1b[0m", value),
-    }
-}
-
-fn style_rule(value: &str, palette: PaletteName, colors_enabled: bool) -> String {
-    if !colors_enabled {
-        return value.to_string();
-    }
-
-    match palette {
-        PaletteName::Hypr => format!("\x1b[38;5;240m{}\x1b[0m", value),
-        PaletteName::Mono => value.dimmed().to_string(),
-        PaletteName::Catppuccin => format!("\x1b[38;5;240m{}\x1b[0m", value),
-        PaletteName::Dracula => format!("\x1b[38;5;240m{}\x1b[0m", value),
-    }
-}
-
-fn color_bar(bright: bool) -> String {
-    // Tokyo Night 风格的颜色条
-    let cells = if bright {
-        [
-            "███".truecolor(122, 162, 247).to_string(), // #7aa2f7
-            "███".truecolor(187, 154, 247).to_string(), // #bb9af7
-            "███".truecolor(125, 207, 255).to_string(), // #7dcfff
-            "███".truecolor(158, 206, 106).to_string(), // #9ece6a
-            "███".truecolor(224, 175, 104).to_string(), // #e0af68
-            "███".truecolor(255, 158, 100).to_string(), // #ff9e64
-            "███".truecolor(247, 118, 142).to_string(), // #f7768e
-            "███".truecolor(192, 167, 214).to_string(), // #c0a7d6
-        ]
-    } else {
-        [
-            "███".truecolor(86, 95, 137).to_string(),   // #565f89
-            "███".truecolor(122, 162, 247).to_string(), // #7aa2f7
-            "███".truecolor(187, 154, 247).to_string(), // #bb9af7
-            "███".truecolor(125, 207, 255).to_string(), // #7dcfff
-            "███".truecolor(158, 206, 106).to_string(), // #9ece6a
-            "███".truecolor(224, 175, 104).to_string(), // #e0af68
-            "███".truecolor(255, 158, 100).to_string(), // #ff9e64
-            "███".truecolor(247, 118, 142).to_string(), // #f7768e
-        ]
-    };
-
-    format!(" {}", cells.join(" "))
-}
-
-fn style_logo(
-    value: &str,
-    definition: logo::LogoDefinition,
-    palette: PaletteName,
-    colors_enabled: bool,
-    line_index: usize,
-    line_count: usize,
-) -> String {
-    if !colors_enabled {
-        return value.to_string();
-    }
-
-    let tone = logo::tone_for_line(definition, palette, line_index, line_count);
-    match palette {
-        PaletteName::Hypr | PaletteName::Catppuccin | PaletteName::Dracula => {
-            style_tone(value, tone)
-        }
-        PaletteName::Mono => value.bold().to_string(),
-    }
-}
-
-fn style_tone(value: &str, tone: LogoTone) -> String {
-    match tone {
-        LogoTone::Blue => value.bold().bright_blue().to_string(),
-        LogoTone::Cyan => value.bold().bright_cyan().to_string(),
-        LogoTone::Green => value.bold().bright_green().to_string(),
-        LogoTone::Indigo => value.bold().bright_magenta().to_string(),
-        LogoTone::Magenta => value.bold().magenta().to_string(),
-        LogoTone::Red => value.bold().bright_red().to_string(),
-        LogoTone::White => value.bold().bright_white().to_string(),
-        LogoTone::Yellow => value.bold().bright_yellow().to_string(),
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use serde_json::json;
-
-    use super::{
-        output_priority, prioritize_outputs_for_width, render_diagnostics, render_text_with_width,
-    };
+    use super::*;
     use crate::config::{AppearanceConfig, ModuleConfig, RuntimeConfig};
     use crate::logo::LogoPreset;
     use crate::model::{
         ColorMode, ModuleId, ModuleOutput, ModuleStatus, OutputRow, PaletteName, RenderStyle,
     };
+    use serde_json::json;
 
     #[test]
     fn renders_plain_column_output() {
@@ -924,35 +588,5 @@ mod tests {
             .map(|output| output.id.as_str())
             .collect::<Vec<_>>();
         assert_eq!(ids, vec!["os", "theme"]);
-    }
-
-    #[test]
-    fn assigns_lower_priority_to_auxiliary_modules() {
-        assert!(output_priority("hyprland") < output_priority("wallpaper"));
-        assert!(output_priority("theme") < output_priority("hypr-devices"));
-    }
-
-    #[test]
-    fn renders_diagnostics_with_module_statuses() {
-        let outputs = vec![
-            ModuleOutput::ok(
-                ModuleId::Os,
-                vec![OutputRow::new("OS", "Arch Linux")],
-                json!({}),
-            ),
-            ModuleOutput::partial(
-                ModuleId::Hyprland,
-                vec![OutputRow::new("Hyprland", "0.48.1")],
-                json!({}),
-                "clients unavailable",
-            ),
-            ModuleOutput::unavailable(ModuleId::Wallpaper, "no wallpaper backend detected"),
-        ];
-
-        let rendered = render_diagnostics(&outputs);
-        assert!(rendered.contains("summary: 1 ok, 1 partial, 1 unavailable"));
-        assert!(rendered.contains("os: ok"));
-        assert!(rendered.contains("hyprland: partial - clients unavailable"));
-        assert!(rendered.contains("wallpaper: unavailable - no wallpaper backend detected"));
     }
 }
