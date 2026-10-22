@@ -365,11 +365,12 @@ timeout_ms = 1000
 - `/var/lib/dpkg/status`
 - `/sys/class/power_supply`
 - `/proc/net/route`, `ip` command for network detection
-- PipeWire/PulseAudio runtime sockets for audio detection
+- PipeWire/PulseAudio runtime sockets and the `wpctl` and `pactl` commands for audio detection
 - environment variables, including Hyprland runtime variables and socket paths
 - Hyprland runtime instance directories under `$XDG_RUNTIME_DIR/hypr`
 - GTK settings files under `$XDG_CONFIG_HOME`
-- `hyprctl`, including `splash` for the current Hyprland splash and `-j` endpoints such as `cursorpos` for pointer location, `configerrors` for config health, `workspacerules` for workspace rule summaries, `binds` for keybind summaries, `globalshortcuts` for portal shortcut summaries, `layouts` for available compositor layouts, `layers` for layer-shell surfaces, and `getoption` for the opt-in `hypr-rice` module
+- `hyprctl`, including `splash` for the current Hyprland splash and `-j` endpoints such as `cursorpos` for pointer location, `configerrors` for config health, `workspacerules` for workspace rule summaries, `binds` for keybind summaries, `globalshortcuts` for global shortcut summaries, `layouts` for available compositor layouts, `layers` for layer-shell surfaces, and `getoption` for the rice and workspace history modules
+- the `date` command for the current date and time
 - `rpm -qa` for RPM-based package counting
 - `/nix/store` for Nix package counting
 - `/opt/homebrew/Cellar` or `/usr/local/Cellar` for Homebrew package counting
