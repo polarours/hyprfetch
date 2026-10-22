@@ -265,6 +265,8 @@ const WALLPAPER_BACKENDS: &[Backend] = &[
     backend("swaybg", "swaybg"),
     backend("mpvpaper", "mpvpaper"),
     backend("waypaper", "waypaper"),
+    backend("awww-daemon", "awww"),
+    backend("matugen", "matugen"),
 ];
 
 const BAR_BACKENDS: &[Backend] = &[
@@ -283,6 +285,7 @@ const LAUNCHER_BACKENDS: &[Backend] = &[
     backend("wofi", "wofi"),
     backend("walker", "walker"),
     backend("tofi", "tofi"),
+    backend("bemenu", "bemenu"),
 ];
 
 const NOTIFICATION_BACKENDS: &[Backend] = &[
@@ -682,5 +685,25 @@ gtk-font-name=Noto Sans,  10
         );
         assert_eq!(first_version_number("v1.2.3"), Some("v1.2.3"));
         assert_eq!(first_version_number("no number here"), None);
+    }
+
+    #[test]
+    fn detects_the_wallpaper_and_launcher_backends() {
+        let processes: HashSet<String> = ["awww-daemon".to_string(), "bemenu".to_string()]
+            .into_iter()
+            .collect();
+
+        let ecosystem = detect_ecosystem_info(&processes);
+        assert_eq!(
+            ecosystem
+                .wallpaper
+                .as_ref()
+                .map(|(label, _)| label.as_str()),
+            Some("awww")
+        );
+        assert_eq!(
+            ecosystem.launcher.as_ref().map(|(label, _)| label.as_str()),
+            Some("bemenu")
+        );
     }
 }
