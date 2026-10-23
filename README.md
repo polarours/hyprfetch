@@ -96,6 +96,32 @@ Choose modules explicitly:
 hyprfetch --modules os,kernel,uptime,hyprland,hypr-health,hypr-instances,hypr-splash,hypr-active-window,hypr-cursor,hypr-workspaces,hypr-monitors,hypr-config,hypr-rules,hypr-binds,hypr-shortcuts,hypr-layouts,hypr-layers,theme,wallpaper,hypr-ecosystem
 ```
 
+Pick the logo, the palette and the colors yourself:
+
+```bash
+hyprfetch --logo minimal --theme catppuccin --color never
+```
+
+Show a spinner while the modules are collected:
+
+```bash
+hyprfetch --animated
+```
+
+List what is available:
+
+```bash
+hyprfetch --list-modules
+hyprfetch --list-logos
+hyprfetch --list-themes
+```
+
+Ignore the config file for a single run:
+
+```bash
+hyprfetch --no-config
+```
+
 Machine-readable output:
 
 ```bash
