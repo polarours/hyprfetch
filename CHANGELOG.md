@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- The input module can list every device on its own row, and the binds module can list every key binding with the modifiers spelled out
+- The input module can list every device on its own row, the binds module can list every key binding with the
+  modifiers spelled out, and the layers module can list every layer surface with its position
 
 - A narrow terminal keeps the logo by falling back to a narrower drawing of it, so the split layout survives down to about 55 columns instead of 76
 - A man page at `contrib/hyprfetch.1`, shipped with the releases and with the Arch package

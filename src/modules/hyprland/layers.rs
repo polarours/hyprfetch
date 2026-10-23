@@ -24,11 +24,19 @@ impl Module for HyprLayersModule {
                 }
 
                 let compact = config.option_bool("compact", true);
-                let rows = if compact {
+                let mut rows = if compact {
                     vec![OutputRow::new("Layers", summarize_layers(&layers))]
                 } else {
                     layer_rows(&layers)
                 };
+
+                // Every surface on its own row, so a rice screenshot shows
+                // which program draws where.
+                if config.option_bool("list", false) {
+                    for surface in layer_surface_rows(&layers) {
+                        rows.push(surface);
+                    }
+                }
 
                 ModuleOutput::ok(self.id(), rows, json!({ "layers": layers }))
             }
@@ -53,6 +61,36 @@ fn summarize_layers(layers: &crate::providers::hyprland::HyprLayers) -> String {
     }
 
     parts.join(", ")
+}
+
+/// One row per layer surface.
+fn layer_surface_rows(layers: &crate::providers::hyprland::HyprLayers) -> Vec<OutputRow> {
+    let mut rows = Vec::new();
+
+    for (monitor_name, monitor) in layers {
+        for (level, surfaces) in &monitor.levels {
+            for surface in surfaces {
+                let namespace = surface
+                    .namespace
+                    .as_deref()
+                    .filter(|namespace| !namespace.is_empty())
+                    .unwrap_or("unknown");
+
+                let mut value = match (surface.x, surface.y) {
+                    (Some(x), Some(y)) => format!("{x},{y} "),
+                    _ => String::new(),
+                };
+                value.push_str(layer_level_label(level));
+                if !monitor_name.is_empty() {
+                    value.push_str(&format!(" on {monitor_name}"));
+                }
+
+                rows.push(OutputRow::new(namespace.to_string(), value));
+            }
+        }
+    }
+
+    rows
 }
 
 fn layer_rows(layers: &crate::providers::hyprland::HyprLayers) -> Vec<OutputRow> {
@@ -250,5 +288,28 @@ mod tests {
                 OutputRow::new("eDP-1", "bg:1 top:2"),
             ]
         );
+    }
+
+    #[test]
+    fn lists_every_layer_surface() {
+        let layers = crate::providers::hyprland::HyprLayers::from([(
+            "eDP-1".to_string(),
+            crate::providers::hyprland::HyprLayerMonitor {
+                levels: BTreeMap::from([(
+                    "2".to_string(),
+                    vec![crate::providers::hyprland::HyprLayerSurface {
+                        namespace: Some("quickshell".to_string()),
+                        x: Some(0),
+                        y: Some(1279),
+                        ..Default::default()
+                    }],
+                )]),
+            },
+        )]);
+
+        let rows = layer_surface_rows(&layers);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].key, "quickshell");
+        assert_eq!(rows[0].value, "0,1279 top on eDP-1");
     }
 }
