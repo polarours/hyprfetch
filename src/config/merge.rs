@@ -312,4 +312,55 @@ mod tests {
             .expect("the share preset includes the disk module");
         assert_eq!(disk.option_string_list("mounts"), vec!["/home".to_string()]);
     }
+
+    #[test]
+    fn the_share_preset_shows_the_desktop_not_only_the_machine() {
+        let cli = CliArgs {
+            config: None,
+            init_config: false,
+            print_config: false,
+            no_config: false,
+            plain: false,
+            share: true,
+            animated: false,
+            watch: false,
+            watch_interval: 1,
+            color: ColorMode::Auto,
+            modules: None,
+            theme: None,
+            style: None,
+            logo: None,
+            json: false,
+            diagnostics: false,
+            list_logos: false,
+            list_modules: false,
+            list_themes: false,
+        };
+
+        let runtime = merge(
+            &cli,
+            AppConfig {
+                version: 1,
+                appearance: super::super::AppearanceConfig::default(),
+                logo: super::super::LogoConfig::default(),
+                modules: Vec::new(),
+                plugins: Vec::new(),
+            },
+        );
+
+        let names: Vec<ModuleId> = runtime.modules.iter().map(|module| module.name).collect();
+        for expected in [
+            ModuleId::Theme,
+            ModuleId::Wallpaper,
+            ModuleId::HyprEcosystem,
+            ModuleId::HyprActiveWindow,
+            ModuleId::HyprWorkspaces,
+            ModuleId::HyprMonitors,
+        ] {
+            assert!(
+                names.contains(&expected),
+                "the share preset is missing {expected:?}"
+            );
+        }
+    }
 }
