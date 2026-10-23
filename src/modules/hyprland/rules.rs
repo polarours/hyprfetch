@@ -17,11 +17,19 @@ impl Module for HyprRulesModule {
             Ok(raw) => {
                 let rules = collect_workspace_rules(&raw);
                 let compact = config.option_bool("compact", true);
-                let rows = if compact {
+                let mut rows = if compact {
                     vec![OutputRow::new("Rules", summarize_workspace_rules(&rules))]
                 } else {
                     workspace_rule_rows(&rules)
                 };
+
+                // Every rule on its own row, so a rice screenshot shows which
+                // window opens where.
+                if config.option_bool("list", false) {
+                    for rule in listed_workspace_rules(&rules) {
+                        rows.push(rule);
+                    }
+                }
 
                 ModuleOutput::ok(self.id(), rows, json!({ "raw": raw, "rules": rules }))
             }
@@ -60,6 +68,8 @@ mod tests {
                 WorkspaceRuleSummary {
                     target: Some("1".to_string()),
                     monitor: Some("eDP-1".to_string()),
+                    match_class: None,
+                    match_title: None,
                     is_default: true,
                     persistent: true,
                     has_gaps: false,
@@ -67,6 +77,8 @@ mod tests {
                 WorkspaceRuleSummary {
                     target: Some("special:music".to_string()),
                     monitor: Some("DP-1".to_string()),
+                    match_class: None,
+                    match_title: None,
                     is_default: false,
                     persistent: false,
                     has_gaps: false,
@@ -74,6 +86,8 @@ mod tests {
                 WorkspaceRuleSummary {
                     target: Some("name:web".to_string()),
                     monitor: None,
+                    match_class: None,
+                    match_title: None,
                     is_default: false,
                     persistent: false,
                     has_gaps: true,
@@ -105,12 +119,44 @@ mod tests {
             vec![OutputRow::new("Workspace Rules", "0 rules")]
         );
     }
+
+    #[test]
+    fn lists_every_workspace_rule() {
+        let raw = serde_json::json!([
+            {
+                "match_class": "firefox",
+                "workspaceString": "web",
+                "monitor": "eDP-1"
+            },
+            {
+                "match_title": "Spotify",
+                "workspaceString": "music"
+            },
+            {
+                "workspaceString": "1",
+                "default": true
+            }
+        ]);
+
+        let rules = collect_workspace_rules(&raw);
+        let rows = listed_workspace_rules(&rules);
+        assert_eq!(
+            rows,
+            vec![
+                OutputRow::new("firefox", "web on eDP-1"),
+                OutputRow::new("Spotify", "music"),
+                OutputRow::new("default", "1, default"),
+            ]
+        );
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct WorkspaceRuleSummary {
     pub target: Option<String>,
     pub monitor: Option<String>,
+    pub match_class: Option<String>,
+    pub match_title: Option<String>,
     pub is_default: bool,
     pub persistent: bool,
     pub has_gaps: bool,
@@ -149,8 +195,38 @@ pub fn summarize_workspace_rules(rules: &[WorkspaceRuleSummary]) -> String {
     parts.join(", ")
 }
 
-pub fn workspace_rule_rows(rules: &[WorkspaceRuleSummary]) -> Vec<crate::model::OutputRow> {
-    let mut rows = vec![crate::model::OutputRow::new(
+/// One row per workspace rule.
+pub fn listed_workspace_rules(rules: &[WorkspaceRuleSummary]) -> Vec<OutputRow> {
+    rules
+        .iter()
+        .map(|rule| {
+            let key = rule
+                .match_class
+                .clone()
+                .or_else(|| rule.match_title.clone())
+                .unwrap_or_else(|| "default".to_string());
+
+            let mut value = rule.target.clone().unwrap_or_else(|| "*".to_string());
+            if let Some(monitor) = rule.monitor.as_deref() {
+                value.push_str(&format!(" on {monitor}"));
+            }
+            if rule.persistent {
+                value.push_str(", persistent");
+            }
+            if rule.has_gaps {
+                value.push_str(", gaps");
+            }
+            if rule.is_default {
+                value.push_str(", default");
+            }
+
+            OutputRow::new(key, value)
+        })
+        .collect()
+}
+
+pub fn workspace_rule_rows(rules: &[WorkspaceRuleSummary]) -> Vec<OutputRow> {
+    let mut rows = vec![OutputRow::new(
         "Workspace Rules",
         count_label(rules.len(), "rule", "rules"),
     )];
@@ -159,19 +235,19 @@ pub fn workspace_rule_rows(rules: &[WorkspaceRuleSummary]) -> Vec<crate::model::
     let flags = workspace_rule_flags(rules);
 
     if !targets.is_empty() {
-        rows.push(crate::model::OutputRow::new(
+        rows.push(OutputRow::new(
             "Rule Targets",
             super::layers::summarize_namespaces(&targets, 8, ", "),
         ));
     }
     if !monitors.is_empty() {
-        rows.push(crate::model::OutputRow::new(
+        rows.push(OutputRow::new(
             "Rule Monitors",
             super::layers::summarize_namespaces(&monitors, 6, ", "),
         ));
     }
     if !flags.is_empty() {
-        rows.push(crate::model::OutputRow::new("Rule Flags", flags));
+        rows.push(OutputRow::new("Rule Flags", flags));
     }
 
     rows
@@ -225,6 +301,11 @@ fn workspace_rule_from_object(
             ],
         ),
         monitor: first_object_value_string(object, &["monitor", "output"]),
+        match_class: first_object_value_string(
+            object,
+            &["match_class", "matchClass", "class", "matcher"],
+        ),
+        match_title: first_object_value_string(object, &["match_title", "matchTitle", "title"]),
         is_default: first_object_bool(object, &["default", "isDefault", "is_default"]),
         persistent: first_object_bool(object, &["persistent", "isPersistent", "is_persistent"]),
         has_gaps: object_has_any_non_empty_key_containing(object, "gap"),
@@ -242,6 +323,11 @@ fn object_looks_like_workspace_rule(object: &serde_json::Map<String, serde_json:
         "output",
         "default",
         "persistent",
+        "match_class",
+        "matchClass",
+        "class",
+        "match_title",
+        "matchTitle",
     ]
     .iter()
     .any(|key| object.contains_key(*key))
