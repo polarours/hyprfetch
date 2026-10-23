@@ -558,7 +558,8 @@ mod tests {
         )];
 
         let rendered = render_text_with_width(&outputs, &runtime, Some(20));
-        assert_eq!(rendered, "Theme gtk:Adwaita i…\n");
+        // the cut moves back to the last space, so no half word is left behind
+        assert_eq!(rendered, "Theme gtk:Adwaita…\n");
     }
 
     #[test]
