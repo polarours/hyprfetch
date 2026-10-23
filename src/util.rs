@@ -75,6 +75,16 @@ pub fn truncate_visible(value: &str, max_chars: usize) -> String {
         output.push(character);
         width += character_width;
     }
+
+    // Cutting a value like "launch:walker (2.17.2)" in the middle of the
+    // version is worse than dropping the last few words, so the cut moves
+    // back to the last space when that does not throw away much.
+    if let Some(space) = output.rfind(' ')
+        && width.saturating_sub(space + 1) <= max_chars / 4
+    {
+        output.truncate(space);
+    }
+
     output.push('…');
     output
 }
