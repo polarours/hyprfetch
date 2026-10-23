@@ -19,7 +19,8 @@ pub fn run_plugin(config: &PluginConfig) -> ModuleOutput {
     let mut child = match command.spawn() {
         Ok(child) => child,
         Err(error) => {
-            return ModuleOutput::unavailable_custom(
+            return plugin_failure(
+                config,
                 id,
                 format!("failed to spawn plugin '{}': {error}", config.name),
             );
@@ -32,7 +33,8 @@ pub fn run_plugin(config: &PluginConfig) -> ModuleOutput {
                 let stdout = String::from_utf8_lossy(&output.stdout);
                 let rows = parse_plugin_rows(&stdout, config);
                 if rows.is_empty() {
-                    return ModuleOutput::unavailable_custom(
+                    return plugin_failure(
+                        config,
                         id,
                         format!("plugin '{}' produced no displayable output", config.name),
                     );
@@ -58,9 +60,10 @@ pub fn run_plugin(config: &PluginConfig) -> ModuleOutput {
                         config.name, output.status
                     )
                 };
-                ModuleOutput::unavailable_custom(id, message)
+                plugin_failure(config, id, message)
             }
-            Err(error) => ModuleOutput::unavailable_custom(
+            Err(error) => plugin_failure(
+                config,
                 id,
                 format!("failed to collect plugin '{}' output: {error}", config.name),
             ),
@@ -68,7 +71,8 @@ pub fn run_plugin(config: &PluginConfig) -> ModuleOutput {
         Ok(false) => {
             let _ = child.kill();
             let _ = child.wait();
-            ModuleOutput::unavailable_custom(
+            plugin_failure(
+                config,
                 id,
                 format!(
                     "plugin '{}' timed out after {}ms",
@@ -76,7 +80,8 @@ pub fn run_plugin(config: &PluginConfig) -> ModuleOutput {
                 ),
             )
         }
-        Err(error) => ModuleOutput::unavailable_custom(
+        Err(error) => plugin_failure(
+            config,
             id,
             format!("failed to wait for plugin '{}': {error}", config.name),
         ),
@@ -123,6 +128,15 @@ fn parse_plugin_rows(stdout: &str, config: &PluginConfig) -> Vec<OutputRow> {
         .collect()
 }
 
+/// A plugin that failed, with the reason shown in a row of its own.
+fn plugin_failure(config: &PluginConfig, id: String, reason: String) -> ModuleOutput {
+    ModuleOutput::unavailable_custom_with_row(
+        id,
+        OutputRow::new(plugin_label(config), reason.clone()),
+        reason,
+    )
+}
+
 fn plugin_label(config: &PluginConfig) -> String {
     config.label.clone().unwrap_or_else(|| config.name.clone())
 }
@@ -133,8 +147,9 @@ fn plugin_output_id(name: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::parse_plugin_rows;
+    use super::{parse_plugin_rows, run_plugin};
     use crate::config::PluginConfig;
+    use crate::model::ModuleStatus;
 
     #[test]
     fn parses_single_line_plugin_output_with_configured_label() {
@@ -161,5 +176,44 @@ mod tests {
         assert_eq!(rows[0].value, "Lo-fi");
         assert_eq!(rows[1].key, "VPN");
         assert_eq!(rows[1].value, "up");
+    }
+
+    #[test]
+    fn a_failing_plugin_keeps_its_reason_in_a_row() {
+        let config = PluginConfig {
+            name: "broken".to_string(),
+            command: "sh".to_string(),
+            args: vec!["-c".to_string(), "exit 3".to_string()],
+            timeout_ms: 1_000,
+            ..PluginConfig::default()
+        };
+
+        let output = run_plugin(&config);
+        assert_eq!(output.status, ModuleStatus::Unavailable);
+        assert_eq!(output.rows.len(), 1);
+        assert_eq!(output.rows[0].key, "broken");
+        assert!(
+            output.rows[0].value.contains("exited with"),
+            "the reason is missing: {output:?}"
+        );
+    }
+
+    #[test]
+    fn a_plugin_that_times_out_keeps_its_reason_in_a_row() {
+        let config = PluginConfig {
+            name: "slow".to_string(),
+            command: "sh".to_string(),
+            args: vec!["-c".to_string(), "sleep 10".to_string()],
+            timeout_ms: 200,
+            ..PluginConfig::default()
+        };
+
+        let output = run_plugin(&config);
+        assert_eq!(output.status, ModuleStatus::Unavailable);
+        assert_eq!(output.rows.len(), 1);
+        assert!(
+            output.rows[0].value.contains("timed out"),
+            "the reason is missing: {output:?}"
+        );
     }
 }

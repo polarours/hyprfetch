@@ -36,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The default audio sink was never reported, because the parser of the `wpctl` output skipped every line
 - The awww wallpaper daemon and the bemenu launcher were not recognised
 - Every Hyprland module is now covered by a test that runs it without a compositor, so a missing `hyprctl` can no longer pass unnoticed
+- A plugin that failed was dropped from the output without a trace, so a broken plugin looked like a plugin that produced nothing
 
 ### Changed
 

@@ -477,6 +477,25 @@ impl ModuleOutput {
             data: Value::Null,
         }
     }
+
+    /// An output that is not available, with the reason kept as a row.
+    ///
+    /// A plugin is a request the user made, so its failure is shown instead
+    /// of being dropped together with the modules that do not apply to the
+    /// machine.
+    pub fn unavailable_custom_with_row(
+        id: impl Into<String>,
+        row: OutputRow,
+        message: impl Into<String>,
+    ) -> Self {
+        Self {
+            id: id.into(),
+            status: ModuleStatus::Unavailable,
+            rows: vec![row],
+            message: Some(message.into()),
+            data: Value::Null,
+        }
+    }
 }
 
 #[cfg(test)]
