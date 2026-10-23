@@ -318,7 +318,7 @@ Selecting modules on the command line narrows the output but keeps the options
 configured for them, so `hyprfetch --modules disk` still reports the mount points from
 the config file.
 
-Three modules can also list their details instead of only counting them:
+The Hyprland modules can list their details instead of only counting them:
 
 ```toml
 [[modules]]
@@ -332,7 +332,19 @@ list = true
 [[modules]]
 name = "hypr-layers"
 list = true
+
+[[modules]]
+name = "hypr-rules"
+list = true
+
+[[modules]]
+name = "hypr-shortcuts"
+list = true
 ```
+
+The listed rows name the window, the binding, the surface, the rule or the
+shortcut they belong to, so a rice screenshot shows the setup instead of a
+count of it.
 
 ## Command Plugins
 

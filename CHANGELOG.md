@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - The input module can list every device on its own row, the binds module can list every key binding with the
-  modifiers spelled out, and the layers module can list every layer surface with its position
+  modifiers spelled out, the layers module can list every layer surface with its position, and the rules and
+  shortcuts modules can list every rule and every global shortcut
 
 - A narrow terminal keeps the logo by falling back to a narrower drawing of it, so the split layout survives down to about 55 columns instead of 76
 - A man page at `contrib/hyprfetch.1`, shipped with the releases and with the Arch package
@@ -36,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Backends whose name is longer than 15 characters were never detected, because the kernel truncates a process name in the process list
 - An endpoint or option the running Hyprland does not know was reported as a JSON parse error, because hyprctl answers it with a plain message and a zero exit code
 - The workspace history module read a config option that no Hyprland version has, so it could never report anything
+- The global shortcuts module never reported the application that claimed a shortcut, because Hyprland packs the application and the id of the shortcut into one name
 - The split and column layouts rendered one character wider than the terminal, so the longest row wrapped
 - A value that had to be cut was cut in the middle of a word, so a version number could end up half shown
 - The SSID, signal and link speed of a wireless interface were missing on drivers that do not publish the wireless files in `/sys`, such as iwlwifi
