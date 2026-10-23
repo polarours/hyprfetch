@@ -144,6 +144,12 @@ impl Module for HyprHealthModule {
         if ecosystem.lock.is_none() {
             warnings.push("lock daemon missing".to_string());
         }
+        if ecosystem.portal.is_none() {
+            warnings.push("portal missing".to_string());
+        }
+        if ecosystem.polkit.is_none() {
+            warnings.push("polkit agent missing".to_string());
+        }
 
         let summary = if warnings.is_empty() {
             "ready".to_string()
@@ -263,6 +269,12 @@ fn summarize_health_warnings(warnings: &[String]) -> String {
     }
     if warnings.iter().any(|warning| warning.contains("lock")) {
         parts.push("lock missing".to_string());
+    }
+    if warnings.iter().any(|warning| warning.contains("portal")) {
+        parts.push("portal missing".to_string());
+    }
+    if warnings.iter().any(|warning| warning.contains("polkit")) {
+        parts.push("polkit missing".to_string());
     }
 
     if parts.is_empty() {

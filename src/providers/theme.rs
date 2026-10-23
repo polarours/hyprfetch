@@ -706,4 +706,16 @@ gtk-font-name=Noto Sans,  10
             Some("bemenu")
         );
     }
+
+    #[test]
+    fn recognises_a_polkit_agent_with_a_truncated_name() {
+        // the kernel keeps only the first 15 characters of a process name
+        let processes: HashSet<String> = ["polkit_gnome_au".to_string()].into_iter().collect();
+
+        let ecosystem = detect_ecosystem_info(&processes);
+        assert_eq!(
+            ecosystem.polkit.as_ref().map(|(label, _)| label.as_str()),
+            Some("polkit")
+        );
+    }
 }
