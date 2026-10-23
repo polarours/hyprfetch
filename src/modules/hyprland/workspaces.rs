@@ -277,6 +277,7 @@ mod tests {
             windows: Some(2),
             has_fullscreen: Some(true),
             last_window_title: None,
+            tiled_layout: None,
         };
 
         assert_eq!(workspace_details(&workspace), "DP-1, 2 windows, fullscreen");

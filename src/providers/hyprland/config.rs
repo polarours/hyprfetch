@@ -53,10 +53,6 @@ impl HyprlandProvider {
         self.cached(&self.global_shortcuts, "globalshortcuts")
     }
 
-    pub fn layouts(&self) -> Result<Value, ProviderError> {
-        self.cached(&self.layouts, "layouts")
-    }
-
     pub fn option(&self, name: &str) -> Result<HyprOption, ProviderError> {
         let raw = self.runner.run("hyprctl", &["-j", "getoption", name])?;
         serde_json::from_str::<HyprOption>(&raw).map_err(|error| {

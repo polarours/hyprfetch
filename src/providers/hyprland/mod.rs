@@ -193,7 +193,6 @@ pub struct HyprlandProvider {
     config_errors: OnceLock<Result<Value, ProviderError>>,
     workspace_rules: OnceLock<Result<Value, ProviderError>>,
     global_shortcuts: OnceLock<Result<Value, ProviderError>>,
-    layouts: OnceLock<Result<Value, ProviderError>>,
     devices: OnceLock<Result<HyprDevices, ProviderError>>,
 }
 
@@ -225,7 +224,6 @@ impl HyprlandProvider {
             config_errors: OnceLock::new(),
             workspace_rules: OnceLock::new(),
             global_shortcuts: OnceLock::new(),
-            layouts: OnceLock::new(),
             devices: OnceLock::new(),
         }
     }
@@ -246,7 +244,6 @@ impl HyprlandProvider {
             s.spawn(|| self.config_errors());
             s.spawn(|| self.workspace_rules());
             s.spawn(|| self.global_shortcuts());
-            s.spawn(|| self.layouts());
             s.spawn(|| self.devices());
         });
     }
@@ -337,7 +334,6 @@ mod tests {
                 ("configerrors".to_string(), fixture("configerrors")),
                 ("workspacerules".to_string(), fixture("workspacerules")),
                 ("globalshortcuts".to_string(), fixture("globalshortcuts")),
-                ("layouts".to_string(), fixture("layouts")),
                 ("devices".to_string(), fixture("devices")),
             ]),
         }));
@@ -356,6 +352,8 @@ mod tests {
         assert_eq!(workspaces[0].windows, Some(2));
         assert_eq!(workspaces[1].has_fullscreen, Some(true));
         assert_eq!(workspaces[2].windows, Some(0));
+        assert_eq!(workspaces[0].tiled_layout.as_deref(), Some("dwindle"));
+        assert_eq!(workspaces[2].tiled_layout.as_deref(), Some("master"));
 
         let window = provider.active_window().unwrap();
         assert!(window.display_name().contains("kitty"));
@@ -407,9 +405,6 @@ mod tests {
 
         let global_shortcuts = provider.global_shortcuts().unwrap();
         assert_eq!(global_shortcuts.as_array().unwrap().len(), 3);
-
-        let layouts = provider.layouts().unwrap();
-        assert_eq!(layouts.as_array().unwrap().len(), 3);
 
         let devices = provider.devices().unwrap();
         assert_eq!(devices.keyboards.len(), 2);

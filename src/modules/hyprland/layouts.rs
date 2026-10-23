@@ -1,16 +1,19 @@
-use std::collections::BTreeSet;
-
-use serde_json::{Map, Value, json};
+use serde_json::json;
+use std::collections::BTreeMap;
 
 use crate::config::ModuleConfig;
 use crate::model::{ModuleId, ModuleOutput, OutputRow};
 use crate::modules::{Module, ModuleContext};
+use crate::providers::hyprland::HyprWorkspace;
 
-use super::config::clean_config_error_text;
 use super::count_label;
 use super::layers::summarize_namespaces;
-use super::rules::first_object_value_string;
+use super::workspaces::workspace_name;
 
+/// The layouts that the workspaces use.
+///
+/// Hyprland does not have an endpoint that lists the layouts it knows, but
+/// every workspace reports the layout it is tiled with.
 pub struct HyprLayoutsModule;
 impl Module for HyprLayoutsModule {
     fn id(&self) -> ModuleId {
@@ -18,45 +21,77 @@ impl Module for HyprLayoutsModule {
     }
 
     fn run(&self, ctx: &ModuleContext<'_>, config: &ModuleConfig) -> ModuleOutput {
-        match ctx.providers.hyprland.layouts() {
-            Ok(raw) => {
-                let layouts = collect_layouts(&raw);
+        match ctx.providers.hyprland.workspaces() {
+            Ok(workspaces) => {
+                let layouts = collect_layouts(&workspaces);
+                if layouts.is_empty() {
+                    return ModuleOutput::unavailable(
+                        self.id(),
+                        "hyprctl reported no tiled layout for any workspace",
+                    );
+                }
+
                 let compact = config.option_bool("compact", true);
-                let rows = if compact {
+                let mut rows = if compact {
                     vec![OutputRow::new("Layouts", summarize_layouts(&layouts))]
                 } else {
                     layout_rows(&layouts)
                 };
 
-                ModuleOutput::ok(self.id(), rows, json!({ "raw": raw, "layouts": layouts }))
+                // Every workspace on its own row, so a rice screenshot shows
+                // which layout a workspace is tiled with.
+                if config.option_bool("list", false) {
+                    for row in listed_layouts(&workspaces) {
+                        rows.push(row);
+                    }
+                }
+
+                ModuleOutput::ok(self.id(), rows, json!({ "layouts": layouts }))
             }
             Err(error) => ModuleOutput::unavailable(self.id(), error.to_string()),
         }
     }
 }
 
+/// A layout and the workspaces that use it.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 struct LayoutSummary {
     name: String,
-    source: Option<String>,
+    workspaces: Vec<String>,
+}
+
+fn collect_layouts(workspaces: &[HyprWorkspace]) -> Vec<LayoutSummary> {
+    let mut grouped: BTreeMap<String, Vec<String>> = BTreeMap::new();
+
+    for workspace in workspaces {
+        let Some(layout) = workspace
+            .tiled_layout
+            .as_deref()
+            .map(str::trim)
+            .filter(|layout| !layout.is_empty())
+        else {
+            continue;
+        };
+
+        grouped
+            .entry(layout.to_string())
+            .or_default()
+            .push(workspace_name(workspace));
+    }
+
+    grouped
+        .into_iter()
+        .map(|(name, workspaces)| LayoutSummary { name, workspaces })
+        .collect()
 }
 
 fn summarize_layouts(layouts: &[LayoutSummary]) -> String {
-    let mut parts = vec![count_label(layouts.len(), "layout", "layouts")];
     let names = layout_names(layouts);
-    let plugin_count = layouts
-        .iter()
-        .filter(|layout| layout.source.is_some())
-        .count();
-
-    if !names.is_empty() {
-        parts.push(summarize_namespaces(&names, 5, "/"));
-    }
-    if plugin_count > 0 {
-        parts.push(format!("{plugin_count} plugin"));
+    if names.is_empty() {
+        return count_label(0, "layout", "layouts");
     }
 
-    parts.join(", ")
+    summarize_namespaces(&names, 4, "/")
 }
 
 fn layout_rows(layouts: &[LayoutSummary]) -> Vec<OutputRow> {
@@ -65,7 +100,6 @@ fn layout_rows(layouts: &[LayoutSummary]) -> Vec<OutputRow> {
         count_label(layouts.len(), "layout", "layouts"),
     )];
     let names = layout_names(layouts);
-    let sources = layout_sources(layouts);
 
     if !names.is_empty() {
         rows.push(OutputRow::new(
@@ -73,93 +107,40 @@ fn layout_rows(layouts: &[LayoutSummary]) -> Vec<OutputRow> {
             summarize_namespaces(&names, 8, ", "),
         ));
     }
-    if !sources.is_empty() {
+
+    for layout in layouts {
         rows.push(OutputRow::new(
-            "Layout Sources",
-            summarize_namespaces(&sources, 6, ", "),
+            layout.name.clone(),
+            count_label(layout.workspaces.len(), "workspace", "workspaces"),
         ));
     }
 
     rows
 }
 
-fn collect_layouts(value: &Value) -> Vec<LayoutSummary> {
-    let mut layouts = Vec::new();
-    collect_layouts_into(value, &mut layouts);
-    layouts.sort_by(|left, right| {
-        left.name
-            .cmp(&right.name)
-            .then_with(|| left.source.cmp(&right.source))
-    });
-    layouts.dedup();
-    layouts
-}
-
-fn collect_layouts_into(value: &Value, layouts: &mut Vec<LayoutSummary>) {
-    match value {
-        Value::String(value) => push_layout_name(layouts, value, None),
-        Value::Array(items) => {
-            for item in items {
-                collect_layouts_into(item, layouts);
-            }
-        }
-        Value::Object(object) => {
-            for key in [
-                "layouts",
-                "available",
-                "availableLayouts",
-                "available_layouts",
-            ] {
-                if let Some(nested) = object.get(key) {
-                    collect_layouts_into(nested, layouts);
-                    return;
-                }
-            }
-
-            if let Some(layout) = layout_from_object(object) {
-                layouts.push(layout);
-            }
-        }
-        Value::Null | Value::Bool(_) | Value::Number(_) => {}
-    }
-}
-
-fn layout_from_object(object: &Map<String, Value>) -> Option<LayoutSummary> {
-    let name = first_object_value_string(object, &["name", "layout", "id", "type"])?;
-    let source = first_object_value_string(object, &["plugin", "source", "owner", "namespace"]);
-    Some(LayoutSummary { name, source })
-}
-
-fn push_layout_name(layouts: &mut Vec<LayoutSummary>, name: &str, source: Option<String>) {
-    let name = clean_config_error_text(name);
-    if name.is_empty() {
-        return;
-    }
-
-    layouts.push(LayoutSummary { name, source });
+/// One row per workspace, with the layout it is tiled with.
+fn listed_layouts(workspaces: &[HyprWorkspace]) -> Vec<OutputRow> {
+    workspaces
+        .iter()
+        .filter_map(|workspace| {
+            let layout = workspace
+                .tiled_layout
+                .as_deref()
+                .map(str::trim)
+                .filter(|layout| !layout.is_empty())?;
+            Some(OutputRow::new(
+                workspace_name(workspace),
+                layout.to_string(),
+            ))
+        })
+        .collect()
 }
 
 fn layout_names(layouts: &[LayoutSummary]) -> Vec<String> {
     layouts
         .iter()
-        .map(|layout| layout.name.as_str())
-        .map(str::trim)
+        .map(|layout| layout.name.clone())
         .filter(|name| !name.is_empty())
-        .map(ToString::to_string)
-        .collect::<BTreeSet<_>>()
-        .into_iter()
-        .collect()
-}
-
-fn layout_sources(layouts: &[LayoutSummary]) -> Vec<String> {
-    layouts
-        .iter()
-        .filter_map(|layout| layout.source.as_deref())
-        .map(str::trim)
-        .filter(|source| !source.is_empty())
-        .map(ToString::to_string)
-        .collect::<BTreeSet<_>>()
-        .into_iter()
         .collect()
 }
 
@@ -167,59 +148,74 @@ fn layout_sources(layouts: &[LayoutSummary]) -> Vec<String> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn summarizes_hypr_layouts() {
-        let raw = serde_json::json!({
-            "layouts": [
-                "dwindle",
-                "master",
-                {
-                    "name": "hy3",
-                    "plugin": "hyprland-hy3"
-                }
-            ]
-        });
+    fn workspace(id: i32, name: &str, layout: Option<&str>) -> HyprWorkspace {
+        HyprWorkspace {
+            id: Some(id),
+            name: Some(name.to_string()),
+            tiled_layout: layout.map(str::to_string),
+            ..HyprWorkspace::default()
+        }
+    }
 
-        let layouts = collect_layouts(&raw);
+    #[test]
+    fn summarizes_the_layouts_of_the_workspaces() {
+        let workspaces = vec![
+            workspace(1, "1", Some("dwindle")),
+            workspace(2, "2", Some("dwindle")),
+            workspace(3, "3", Some("master")),
+        ];
+
+        let layouts = collect_layouts(&workspaces);
         assert_eq!(
             layouts,
             vec![
                 LayoutSummary {
                     name: "dwindle".to_string(),
-                    source: None,
-                },
-                LayoutSummary {
-                    name: "hy3".to_string(),
-                    source: Some("hyprland-hy3".to_string()),
+                    workspaces: vec!["1".to_string(), "2".to_string()],
                 },
                 LayoutSummary {
                     name: "master".to_string(),
-                    source: None,
+                    workspaces: vec!["3".to_string()],
                 },
             ]
         );
-        assert_eq!(
-            summarize_layouts(&layouts),
-            "3 layouts, dwindle/hy3/master, 1 plugin"
-        );
+        assert_eq!(summarize_layouts(&layouts), "dwindle/master");
         assert_eq!(
             layout_rows(&layouts),
             vec![
-                OutputRow::new("Layouts", "3 layouts"),
-                OutputRow::new("Layout Names", "dwindle, hy3, master"),
-                OutputRow::new("Layout Sources", "hyprland-hy3"),
+                OutputRow::new("Layouts", "2 layouts"),
+                OutputRow::new("Layout Names", "dwindle, master"),
+                OutputRow::new("dwindle", "2 workspaces"),
+                OutputRow::new("master", "1 workspace"),
             ]
         );
     }
 
     #[test]
-    fn handles_empty_hypr_layouts() {
-        let layouts = collect_layouts(&serde_json::json!([]));
+    fn lists_the_layout_of_every_workspace() {
+        let workspaces = vec![
+            workspace(1, "1", Some("dwindle")),
+            workspace(-99, "special:music", Some("master")),
+            workspace(4, "4", None),
+        ];
+
+        let rows = listed_layouts(&workspaces);
+        assert_eq!(
+            rows,
+            vec![
+                OutputRow::new("1", "dwindle"),
+                OutputRow::new("[music]", "master"),
+            ]
+        );
+    }
+
+    #[test]
+    fn handles_workspaces_without_a_layout() {
+        let workspaces = vec![workspace(1, "1", None), workspace(2, "2", Some("  "))];
+
+        let layouts = collect_layouts(&workspaces);
         assert!(layouts.is_empty());
         assert_eq!(summarize_layouts(&layouts), "0 layouts");
-        assert_eq!(
-            layout_rows(&layouts),
-            vec![OutputRow::new("Layouts", "0 layouts")]
-        );
+        assert!(listed_layouts(&workspaces).is_empty());
     }
 }

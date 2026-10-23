@@ -15,6 +15,9 @@ pub struct HyprWorkspace {
     /// The title of the window that was last focused in this workspace.
     #[serde(rename = "lastwindowtitle")]
     pub last_window_title: Option<String>,
+    /// The tiled layout this workspace uses.
+    #[serde(rename = "tiledLayout")]
+    pub tiled_layout: Option<String>,
 }
 
 impl HyprWorkspace {

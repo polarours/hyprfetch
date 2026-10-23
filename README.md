@@ -340,11 +340,15 @@ list = true
 [[modules]]
 name = "hypr-shortcuts"
 list = true
+
+[[modules]]
+name = "hypr-layouts"
+list = true
 ```
 
-The listed rows name the window, the binding, the surface, the rule or the
-shortcut they belong to, so a rice screenshot shows the setup instead of a
-count of it.
+The listed rows name the window, the binding, the surface, the rule, the
+shortcut or the workspace they belong to, so a rice screenshot shows the setup
+instead of a count of it.
 
 ## Command Plugins
 
