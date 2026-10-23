@@ -69,6 +69,17 @@ macro_rules! logo_catalog {
         );* $(;)?
     ) => {
         /// A built-in logo.
+        ///
+        /// The catalogue holds one entry per logo. Every entry names the
+        /// variant, the name the preset is selected by, the os-release values
+        /// that select it, the artwork and the three tones. The entries are
+        /// grouped by family: the platform logos first, then the Arch, Fedora,
+        /// Debian, Ubuntu, SUSE and Gentoo families, the other Linux
+        /// distributions, the enterprise and appliance ones and finally the
+        /// BSDs.
+        ///
+        /// The aliases are matched case-insensitively and without punctuation,
+        /// so `linux mint` and `linuxmint` are the same alias.
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
         #[serde(rename_all = "kebab-case")]
         pub enum LogoPreset {
@@ -133,6 +144,8 @@ macro_rules! logo_catalog {
     };
 }
 
+// The catalogue of the built-in logos. See the `LogoPreset` type for how an
+// entry is put together.
 logo_catalog! {
     None => "none", [], "", White, White, White;
     Minimal => "minimal", [], "hyprfetch", Cyan, Cyan, Cyan;
@@ -165,6 +178,7 @@ logo_catalog! {
     Kinoite => "kinoite", ["fedora kinoite"], include_str!("../assets/logos/fedora_kinoite.txt"), Blue, Cyan, White;
     Sericea => "sericea", ["fedora sericea"], include_str!("../assets/logos/fedora_sericea.txt"), Blue, Cyan, White;
     Nobara => "nobara", ["nobara project"], include_str!("../assets/logos/nobara.txt"), Blue, Cyan, White;
+    Coreos => "coreos", [], include_str!("../assets/logos/fedora_coreos.txt"), Blue, Cyan, White;
     Debian => "debian", ["debian gnu/linux"], include_str!("../assets/logos/debian.txt"), Red, Magenta, White;
     Devuan => "devuan", [], include_str!("../assets/logos/devuan.txt"), Red, Magenta, White;
     Kali => "kali", ["kali linux", "kali gnu/linux"], include_str!("../assets/logos/kali.txt"), Blue, Cyan, White;
@@ -347,6 +361,17 @@ logo_catalog! {
     Osmc => "osmc", [], include_str!("../assets/logos/osmc.txt"), Blue, Cyan, White;
     Redos => "redos", [], include_str!("../assets/logos/redos.txt"), Blue, Cyan, White;
     Salix => "salix", [], include_str!("../assets/logos/salix.txt"), Blue, Cyan, White;
+    Bitrig => "bitrig", [], include_str!("../assets/logos/bitrig.txt"), Blue, Cyan, White;
+    Endless => "endless", ["endless os"], include_str!("../assets/logos/endless.txt"), Blue, Cyan, White;
+    Refracta => "refracta", [], include_str!("../assets/logos/refracta.txt"), Blue, Cyan, White;
+    Frugalware => "frugalware", [], include_str!("../assets/logos/frugalware.txt"), Blue, Cyan, White;
+    Snigdhaos => "snigdhaos", [], include_str!("../assets/logos/snigdhaos.txt"), Blue, Cyan, White;
+    Univention => "univention", [], include_str!("../assets/logos/univention.txt"), Blue, Cyan, White;
+    Openstage => "openstage", [], include_str!("../assets/logos/openstage.txt"), Blue, Cyan, White;
+    Galliumos => "galliumos", [], include_str!("../assets/logos/galliumos.txt"), Blue, Cyan, White;
+    Grapheneos => "grapheneos", [], include_str!("../assets/logos/grapheneos.txt"), Blue, Cyan, White;
+    Libreelec => "libreelec", [], include_str!("../assets/logos/libreelec.txt"), Blue, Cyan, White;
+    Pcbsd => "pcbsd", [], include_str!("../assets/logos/pcbsd.txt"), Blue, Cyan, White;
 }
 
 /// Resolve the logo to use.
@@ -464,7 +489,7 @@ fn platform_fallback() -> LogoPreset {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
+    use std::collections::{HashMap, HashSet};
     use std::str::FromStr;
 
     use super::{LogoPreset, definition, definitions, resolve, strip_fastfetch_markers};
@@ -639,8 +664,9 @@ mod tests {
 
     #[test]
     fn aliases_are_unique_across_the_catalogue() {
-        let mut seen = HashSet::new();
+        let mut seen: HashMap<String, &str> = HashMap::new();
         for definition in definitions() {
+            let mut own: HashSet<String> = HashSet::new();
             for alias in definition.aliases {
                 let normalized: String = alias
                     .chars()
@@ -648,9 +674,18 @@ mod tests {
                     .flat_map(char::to_lowercase)
                     .collect();
                 assert!(
-                    seen.insert(normalized.clone()),
-                    "alias {alias} is claimed by more than one logo"
+                    own.insert(normalized.clone()),
+                    "{} lists the alias {alias} twice",
+                    definition.preset
                 );
+                if let Some(other) = seen.insert(normalized.clone(), definition.preset.name()) {
+                    assert_eq!(
+                        other,
+                        definition.preset.name(),
+                        "the alias {alias} is claimed by {other} and by {}",
+                        definition.preset
+                    );
+                }
             }
         }
     }

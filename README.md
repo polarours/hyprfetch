@@ -13,7 +13,7 @@ Unlike generic fetch tools, it treats Hyprland runtime data as first-class outpu
 - Output modes: styled split layout, plain mode, minimal mode, JSON mode, diagnostics mode, configurable module order, width-aware layout fallback for narrow terminals, share preset that leads with the theme and the live session state, `--watch` continuous refresh mode
 - Customization: TOML-driven module order, per-module options, user-defined display labels, and command plugins
 - Palettes: hypr, mono, catppuccin, dracula
-- Logo system: bundled distro-aware text logos stored in `assets/logos/`, with `os-release` auto detection, family fallback, and explicit override support (213 built-in presets)
+- Logo system: bundled distro-aware text logos stored in `assets/logos/`, with `os-release` auto detection, family fallback, and explicit override support (225 built-in presets)
 - Package managers: pacman, dpkg, rpm, nix, homebrew
 - Config: `~/.config/hyprfetch/config.toml` or `$XDG_CONFIG_HOME/hyprfetch/config.toml`
 
@@ -422,7 +422,7 @@ its own artwork instead of a generic fallback:
   `kogaion`, `massos`, `midos`, `obarun`, `orchid`, `oreon`, `parsix`, `radix`, `ravynos`,
   `regata`, `secureblue`, `xinux`
 - **Fedora and RHEL family**: `fedora`, `rocky`, `almalinux`, `centos`, `oracle`,
-  `silverblue`, `kinoite`, `sericea`, `nobara`
+  `silverblue`, `kinoite`, `sericea`, `coreos`, `nobara`
 - **Debian family**: `debian`, `devuan`, `kali`, `parrot`, `raspbian`, `mx`, `antix`,
   `dietpi`, `deepin`, `q4os`, `proxmox`, `truenas`, `emmabuntus`, `lilidog`, `locos`,
   `tails`, `trisquel`, `sparky`, `siduction`, `parabola`, `pardus`, `pclinuxos`,
@@ -440,17 +440,18 @@ its own artwork instead of a generic fallback:
   `source-mage`, `slackware`, `mageia`, `mandriva`, `exherbo`, `scientific`, `lfs`,
   `puppy`, `armbian`, `sabayon`, `korora`, `netrunner`, `porteus`, `skiffos`, `swagarch`,
   `uwuntu`, `valhalla`, `venom`, `vnux`, `wolfos`, `macaronos`, `maui`, `nuros`,
-  `nurunner`, `laxeros`, `minix`, `msys2`, `nitrux`, `osmc`, `redos`, `salix`
+  `nurunner`, `laxeros`, `minix`, `msys2`, `nitrux`, `osmc`, `redos`, `salix`,
+  `bitrig`, `endless`, `refracta`, `frugalware`, `snigdhaos`, `univention`, `openstage`
 - **Enterprise and appliance**: `clear-linux-os`, `amazon`, `openwrt`, `opnsense`,
   `haiku`, `qubes`, `openkylin`, `kylin`, `uos`, `astra`, `cbl-mariner`, `android`,
   `harmonyos`, `sailfish`, `bredos`, `smartos`, `openindiana`, `omnios`, `torizon`,
-  `serpent`
+  `serpent`, `galliumos`, `grapheneos`, `libreelec`, `pcbsd`
 - **BSD and Unix**: `freebsd`, `netbsd`, `openbsd`, `dragonfly`, `ghostbsd`,
   `midnightbsd`, `nomadbsd`, `bsd`, `solaris`, `zos`, `aix`
 - **Platform and generic**: `hypr`, `linux`, `windows`, `windows-95`, `windows-8`,
   `windows-11`, `windows-2025`, `macos`
 
-Two extra presets are also available: `minimal`, which renders the `hyprfetch` wordmark instead of distro art, and `none`, which hides the logo entirely. Run `hyprfetch --list-logos` for the authoritative list of all 213 presets plus `auto`.
+Two extra presets are also available: `minimal`, which renders the `hyprfetch` wordmark instead of distro art, and `none`, which hides the logo entirely. Run `hyprfetch --list-logos` for the authoritative list of all 225 presets plus `auto`.
 
 Auto detection follows the same basic idea that makes `fastfetch` strong here: check `VARIANT`, then `ID`, then `NAME`, then `ID_LIKE`, and only then fall back to the platform family logo. That means unsupported derivatives still land on a sensible family logo in many cases instead of dropping straight to a generic fallback.
 
