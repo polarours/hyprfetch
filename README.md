@@ -318,6 +318,18 @@ Selecting modules on the command line narrows the output but keeps the options
 configured for them, so `hyprfetch --modules disk` still reports the mount points from
 the config file.
 
+Two modules can also list their details instead of only counting them:
+
+```toml
+[[modules]]
+name = "hypr-devices"
+devices = true
+
+[[modules]]
+name = "hypr-binds"
+list = true
+```
+
 ## Command Plugins
 
 Command plugins are the first step toward a richer plugin system. They let users add custom rows without recompiling `hyprfetch`.
