@@ -54,10 +54,9 @@ mod tests {
     use std::collections::HashMap;
     use std::sync::Arc;
 
-    use super::*;
     use crate::config::{AppearanceConfig, ModuleConfig, RuntimeConfig};
     use crate::model::{ColorMode, ModuleId, ModuleStatus, PaletteName, RenderStyle};
-    use crate::modules::{Module, ModuleContext, build_module};
+    use crate::modules::{ModuleContext, build_module};
     use crate::providers::Providers;
     use crate::providers::hyprland::MockRunner;
 
