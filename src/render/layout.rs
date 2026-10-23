@@ -36,16 +36,15 @@ pub(super) fn render_text_with_width(
         let logo_definition = logo::definition(runtime.resolved_logo);
         let raw_logo = logo_definition.lines();
         if !raw_logo.is_empty() {
-            let logo_width = raw_logo
-                .iter()
-                .map(|line| UnicodeWidthStr::width(line.as_str()))
-                .max()
-                .unwrap_or(0);
             let split_padding = runtime.appearance.padding + 1;
-            // the split layout writes the key with a colon behind it
-            let split_base_width = logo_width + split_padding + key_width + 1 + separator_width;
 
-            if has_split_space(terminal_width, split_base_width) {
+            // the split layout writes the key with a colon behind it
+            let split_base_width = |logo: &[String]| {
+                logo_width_of(logo) + split_padding + key_width + 1 + separator_width
+            };
+
+            let full_base_width = split_base_width(&raw_logo);
+            if has_split_space(terminal_width, full_base_width) {
                 return render_split(
                     rows,
                     raw_logo,
@@ -53,8 +52,26 @@ pub(super) fn render_text_with_width(
                     colors_enabled,
                     logo_definition,
                     key_width,
-                    split_value_width(terminal_width, split_base_width),
+                    split_value_width(terminal_width, full_base_width),
                 );
+            }
+
+            // The full drawing is too wide, so try the narrower one before
+            // giving the logo up altogether.
+            let compact_logo = logo_definition.compact_lines();
+            if !compact_logo.is_empty() {
+                let compact_base_width = split_base_width(&compact_logo);
+                if has_split_space(terminal_width, compact_base_width) {
+                    return render_split(
+                        rows,
+                        compact_logo,
+                        runtime,
+                        colors_enabled,
+                        logo_definition,
+                        key_width,
+                        split_value_width(terminal_width, compact_base_width),
+                    );
+                }
             }
         }
     }
@@ -365,6 +382,15 @@ fn has_column_space(
         .unwrap_or(true)
 }
 
+/// The width of the widest line of a logo.
+fn logo_width_of(lines: &[String]) -> usize {
+    lines
+        .iter()
+        .map(|line| UnicodeWidthStr::width(line.as_str()))
+        .max()
+        .unwrap_or(0)
+}
+
 fn split_value_width(terminal_width: Option<usize>, split_base_width: usize) -> Option<usize> {
     terminal_width.and_then(|width| width.checked_sub(split_base_width))
 }
@@ -639,5 +665,57 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// A narrow terminal keeps the logo by switching to the compact drawing.
+    #[test]
+    fn uses_the_compact_logo_when_the_full_one_is_too_wide() {
+        let runtime = RuntimeConfig {
+            appearance: AppearanceConfig {
+                style: RenderStyle::Split,
+                palette: PaletteName::Hypr,
+                color: ColorMode::Never,
+                plain: false,
+                color_bars: false,
+                padding: 1,
+                separator: "  ".to_string(),
+            },
+            logo: LogoPreset::Arch,
+            resolved_logo: LogoPreset::Arch,
+            modules: vec![ModuleConfig::from(ModuleId::Os)],
+            plugins: Vec::new(),
+            json: false,
+            diagnostics: false,
+            animated: false,
+            watch: false,
+            watch_interval: 1,
+        };
+
+        let outputs = vec![ModuleOutput::ok(
+            ModuleId::Os,
+            vec![OutputRow::new("OS", "Arch Linux")],
+            json!({}),
+        )];
+
+        let definition = logo::definition(LogoPreset::Arch);
+        let full = definition.lines();
+        let compact = definition.compact_lines();
+        assert!(!compact.is_empty(), "the arch logo has a compact drawing");
+        assert!(
+            logo_width_of(&compact) < logo_width_of(&full),
+            "the compact drawing is not narrower"
+        );
+
+        // the full drawing does not fit here, the compact one does
+        let width = 60;
+        let rendered = render_text_with_width(&outputs, &runtime, Some(width));
+        assert!(
+            rendered.contains(compact.first().expect("the compact logo has a line")),
+            "the logo is missing:\n{rendered}"
+        );
+        assert!(
+            !rendered.contains(full.first().expect("the logo has a line")),
+            "the full drawing is still used:\n{rendered}"
+        );
     }
 }

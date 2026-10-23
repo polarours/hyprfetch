@@ -51,7 +51,7 @@ hyprfetch
 
 This uses `os-release` to choose a built-in distro logo automatically. If the distro is not recognized, `hyprfetch` falls back to a generic Linux logo.
 Styled output uses `key: value` rows, a session title, and optional terminal color bars similar to classic fetch screenshots.
-On narrow terminals, `hyprfetch` automatically drops from the logo split layout to denser text layouts instead of relying on hard wrapping.
+On narrow terminals, `hyprfetch` first switches to a narrower drawing of the logo, and only drops from the logo split layout to denser text layouts when even that does not fit, instead of relying on hard wrapping.
 On very narrow terminals, it also prioritizes core system and Hyprland session modules before auxiliary modules like wallpaper or device summaries.
 
 Plain output:
