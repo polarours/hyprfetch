@@ -5,12 +5,11 @@ All notable changes to hyprfetch will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.0] - 2026-10-23
 
 ### Added
 
 - A narrow terminal keeps the logo by falling back to a narrower drawing of it, so the split layout survives down to about 55 columns instead of 76
-
 - A man page at `contrib/hyprfetch.1`, shipped with the releases and with the Arch package
 
 - **System modules**: realtime CPU utilisation, GPU utilisation for NVIDIA, AMD and Intel
