@@ -30,11 +30,21 @@ impl Module for HyprDevicesModule {
                 }
 
                 let mut rows = vec![OutputRow::new("Input", devices.total_count().to_string())];
-                push_device_row(&mut rows, "Keyboards", devices.keyboards.len());
-                push_device_row(&mut rows, "Mice", devices.mice.len());
-                push_device_row(&mut rows, "Tablets", devices.tablets.len());
-                push_device_row(&mut rows, "Touch", devices.touch.len());
-                push_device_row(&mut rows, "Switches", devices.switches.len());
+
+                // Every device on its own row, for a machine with more than one
+                // keyboard or an unusual pointer.
+                let list_devices = config.option_bool("devices", false);
+                if list_devices {
+                    for device in device_rows(&devices) {
+                        rows.push(device);
+                    }
+                } else {
+                    push_device_row(&mut rows, "Keyboards", devices.keyboards.len());
+                    push_device_row(&mut rows, "Mice", devices.mice.len());
+                    push_device_row(&mut rows, "Tablets", devices.tablets.len());
+                    push_device_row(&mut rows, "Touch", devices.touch.len());
+                    push_device_row(&mut rows, "Switches", devices.switches.len());
+                }
                 if let Some(keyboard) = primary_keyboard(&devices) {
                     if let Some(name) = keyboard.name.as_deref().filter(|name| !name.is_empty()) {
                         rows.push(OutputRow::new("Main Keyboard", name));
@@ -97,6 +107,43 @@ fn lock_states(devices: &crate::providers::hyprland::HyprDevices) -> Vec<(&'stat
         states.push(("num", num));
     }
     states
+}
+
+/// One row per input device.
+fn device_rows(devices: &crate::providers::hyprland::HyprDevices) -> Vec<OutputRow> {
+    let mut rows = Vec::new();
+
+    for (label, group) in [
+        ("Keyboard", &devices.keyboards),
+        ("Mouse", &devices.mice),
+        ("Tablet", &devices.tablets),
+        ("Touch", &devices.touch),
+        ("Switch", &devices.switches),
+    ] {
+        for device in group {
+            let name = device.name.as_deref().unwrap_or("unknown");
+            let mut value = name.to_string();
+            if let Some(keymap) = device
+                .active_keymap
+                .as_deref()
+                .filter(|keymap| !keymap.is_empty())
+            {
+                value.push_str(&format!(" ({keymap})"));
+            }
+            if device.caps_lock == Some(true) {
+                value.push_str(" caps");
+            }
+            if device.num_lock == Some(true) {
+                value.push_str(" num");
+            }
+            if device.main == Some(true) {
+                value.push_str(" main");
+            }
+            rows.push(OutputRow::new(label, value));
+        }
+    }
+
+    rows
 }
 
 fn primary_keyboard(
@@ -216,5 +263,29 @@ mod tests {
     fn reports_lock_labels() {
         assert_eq!(lock_label(true), "on");
         assert_eq!(lock_label(false), "off");
+    }
+
+    #[test]
+    fn lists_every_device_on_its_own_row() {
+        let devices = HyprDevices {
+            keyboards: vec![HyprInputDevice {
+                name: Some("Keychron".to_string()),
+                active_keymap: Some("Colemak".to_string()),
+                main: Some(true),
+                ..HyprInputDevice::default()
+            }],
+            mice: vec![HyprInputDevice {
+                name: Some("G Pro".to_string()),
+                ..HyprInputDevice::default()
+            }],
+            ..HyprDevices::default()
+        };
+
+        let rows = device_rows(&devices);
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].key, "Keyboard");
+        assert_eq!(rows[0].value, "Keychron (Colemak) main");
+        assert_eq!(rows[1].key, "Mouse");
+        assert_eq!(rows[1].value, "G Pro");
     }
 }

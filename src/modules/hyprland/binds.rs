@@ -21,11 +21,18 @@ impl Module for HyprBindsModule {
                 }
 
                 let compact = config.option_bool("compact", true);
-                let rows = if compact {
+                let mut rows = if compact {
                     vec![OutputRow::new("Binds", summarize_binds(&binds))]
                 } else {
                     bind_rows(&binds)
                 };
+
+                // Every binding on its own row, for a rice screenshot.
+                if config.option_bool("list", false) {
+                    for bind in listed_binds(&binds) {
+                        rows.push(bind);
+                    }
+                }
 
                 ModuleOutput::ok(self.id(), rows, json!({ "binds": binds }))
             }
@@ -78,6 +85,70 @@ fn bind_rows(binds: &[crate::providers::hyprland::HyprBind]) -> Vec<OutputRow> {
     }
 
     rows
+}
+
+/// One row per binding, with the modifiers spelled out.
+fn listed_binds(binds: &[crate::providers::hyprland::HyprBind]) -> Vec<OutputRow> {
+    binds
+        .iter()
+        .map(|bind| {
+            let key = bind.key.as_deref().unwrap_or("?");
+            let mut label = match bind.modmask.unwrap_or_default() {
+                0 => key.to_string(),
+                mask => format!("{} + {key}", modifiers(mask)),
+            };
+            if bind.mouse {
+                label.push_str(" (mouse)");
+            }
+            if bind.repeat {
+                label.push_str(" (repeat)");
+            }
+
+            let mut value = match bind.description.as_deref().map(str::trim) {
+                Some(description) if !description.is_empty() => description.to_string(),
+                _ => match bind.dispatcher.as_deref().map(str::trim) {
+                    Some(dispatcher) if !dispatcher.is_empty() => dispatcher.to_string(),
+                    _ => "exec".to_string(),
+                },
+            };
+            if let Some(arg) = bind
+                .arg
+                .as_deref()
+                .map(str::trim)
+                .filter(|arg| !arg.is_empty())
+            {
+                value.push_str(&format!(" ({arg})"));
+            }
+
+            OutputRow::new(label, value)
+        })
+        .collect()
+}
+
+/// The modifiers of a binding, spelled out.
+fn modifiers(mask: i64) -> String {
+    const NAMES: &[(i64, &str)] = &[
+        (1 << 0, "SHIFT"),
+        (1 << 1, "CAPS"),
+        (1 << 2, "CTRL"),
+        (1 << 3, "ALT"),
+        (1 << 4, "MOD2"),
+        (1 << 5, "MOD3"),
+        (1 << 6, "SUPER"),
+        (1 << 7, "MOD5"),
+    ];
+
+    let names: Vec<&str> = NAMES
+        .iter()
+        .filter(|(bit, _)| mask & bit != 0)
+        .map(|(_, name)| *name)
+        .collect();
+
+    if names.is_empty() {
+        "NONE".to_string()
+    } else {
+        names.join(" + ")
+    }
 }
 
 fn bind_submaps(binds: &[crate::providers::hyprland::HyprBind]) -> Vec<String> {
@@ -204,5 +275,44 @@ mod tests {
                 OutputRow::new("Dispatchers", "exec:2, submap:1, workspace:1"),
             ]
         );
+    }
+
+    #[test]
+    fn spells_out_the_modifiers_of_a_binding() {
+        assert_eq!(modifiers(0), "NONE");
+        assert_eq!(modifiers(64), "SUPER");
+        assert_eq!(modifiers(64 | 1), "SHIFT + SUPER");
+        assert_eq!(modifiers(64 | 4), "CTRL + SUPER");
+    }
+
+    #[test]
+    fn lists_a_binding_with_its_dispatcher() {
+        let binds = vec![HyprBind {
+            key: Some("Q".to_string()),
+            modmask: Some(64),
+            dispatcher: Some("__lua".to_string()),
+            arg: Some("6".to_string()),
+            ..HyprBind::default()
+        }];
+
+        let rows = listed_binds(&binds);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].key, "SUPER + Q");
+        assert_eq!(rows[0].value, "__lua (6)");
+    }
+
+    #[test]
+    fn prefers_the_description_of_a_binding() {
+        let binds = vec![HyprBind {
+            key: Some("Q".to_string()),
+            modmask: Some(0),
+            description: Some("close window".to_string()),
+            dispatcher: Some("killactive".to_string()),
+            ..HyprBind::default()
+        }];
+
+        let rows = listed_binds(&binds);
+        assert_eq!(rows[0].key, "Q");
+        assert_eq!(rows[0].value, "close window");
     }
 }
