@@ -288,8 +288,8 @@ impl HyprlandProvider {
 use std::collections::HashMap;
 
 #[cfg(test)]
-pub(super) struct MockRunner {
-    pub(super) payloads: HashMap<String, String>,
+pub(crate) struct MockRunner {
+    pub(crate) payloads: HashMap<String, String>,
 }
 
 #[cfg(test)]
