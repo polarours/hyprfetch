@@ -508,6 +508,6 @@ Before submitting to the AUR, confirm the GitHub repository URL in `Cargo.toml` 
 
 ## Roadmap
 
-- richer Hyprland ecosystem detection
+- more Hyprland ecosystem backends, each with its version
 - deeper workspace history and input detail modules
 - more artwork for the remaining distributions in `assets/logos/`

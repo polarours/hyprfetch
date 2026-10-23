@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -105,7 +105,7 @@ impl EcosystemInfo {
 
 #[derive(Debug, Clone, Default)]
 pub struct ThemeProvider {
-    process_names: OnceLock<Result<HashSet<String>, ProviderError>>,
+    processes: OnceLock<Result<Vec<Process>, ProviderError>>,
 }
 
 impl ThemeProvider {
@@ -138,8 +138,8 @@ impl ThemeProvider {
     }
 
     pub fn ecosystem_info(&self) -> Result<EcosystemInfo, ProviderError> {
-        let process_names = self.process_names.get_or_init(read_process_names).clone()?;
-        let ecosystem = detect_ecosystem_info(&process_names);
+        let processes = self.processes.get_or_init(read_processes).clone()?;
+        let ecosystem = detect_ecosystem_info(&processes);
         if ecosystem.is_empty() {
             return Err(ProviderError::not_found(
                 "no known Hyprland ecosystem tools detected",
@@ -192,8 +192,29 @@ fn normalize_font_name(value: &str) -> String {
     value.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-fn read_process_names() -> Result<HashSet<String>, ProviderError> {
-    let mut names = HashSet::new();
+/// A running process, with the name the kernel shows and the binary it runs.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Process {
+    /// The name from `/proc/<pid>/comm`, at most 15 characters long.
+    comm: String,
+    /// The path of the binary the process runs, if it can be read.
+    exe: Option<String>,
+}
+
+impl Process {
+    /// The file name of the binary the process runs.
+    fn exe_name(&self) -> Option<&str> {
+        self.exe.as_deref().and_then(|path| {
+            Path::new(path)
+                .file_name()
+                .and_then(|name| name.to_str())
+                .filter(|name| !name.is_empty())
+        })
+    }
+}
+
+fn read_processes() -> Result<Vec<Process>, ProviderError> {
+    let mut processes = Vec::new();
     for entry in fs::read_dir("/proc").map_err(ProviderError::io)? {
         let entry = entry.map_err(ProviderError::io)?;
         let Some(file_name) = entry.file_name().to_str().map(str::to_string) else {
@@ -205,12 +226,22 @@ fn read_process_names() -> Result<HashSet<String>, ProviderError> {
         {
             continue;
         }
-        let comm_path = entry.path().join("comm");
-        if let Ok(name) = fs::read_to_string(comm_path) {
-            names.insert(name.trim().to_ascii_lowercase());
-        }
+        let path = entry.path();
+        let Ok(comm) = fs::read_to_string(path.join("comm")) else {
+            continue;
+        };
+        let exe = fs::read_link(path.join("exe")).ok().and_then(|link| {
+            let link = link.to_string_lossy().to_string();
+            let link = link.strip_suffix(" (deleted)").unwrap_or(&link);
+            (!link.is_empty()).then(|| link.to_string())
+        });
+
+        processes.push(Process {
+            comm: comm.trim().to_ascii_lowercase(),
+            exe,
+        });
     }
-    Ok(names)
+    Ok(processes)
 }
 
 /// A desktop component to look for among the running processes.
@@ -220,6 +251,9 @@ struct Backend {
     process: &'static str,
     /// The name to show in the output.
     label: &'static str,
+    /// Whether the label only names the kind of the backend, so the name of
+    /// the implementation that runs is shown instead.
+    generic: bool,
     /// Whether running the process with `--version` is safe. Agents such as
     /// portal implementations would otherwise start a second instance.
     probe: bool,
@@ -246,15 +280,29 @@ const fn backend(process: &'static str, label: &'static str) -> Backend {
     Backend {
         process,
         label,
+        generic: false,
         probe: true,
     }
 }
 
-/// A backend that must not be started again to read its version.
-const fn passive_backend(process: &'static str, label: &'static str) -> Backend {
+/// A backend whose label only names the kind of it, so the name of the
+/// implementation that runs is shown instead.
+const fn generic_backend(process: &'static str, label: &'static str) -> Backend {
     Backend {
         process,
         label,
+        generic: true,
+        probe: true,
+    }
+}
+
+/// A backend that must not be started again and whose label only names the
+/// kind of it.
+const fn generic_passive_backend(process: &'static str, label: &'static str) -> Backend {
+    Backend {
+        process,
+        label,
+        generic: true,
         probe: false,
     }
 }
@@ -326,69 +374,113 @@ const PICKER_BACKENDS: &[Backend] = &[
 ];
 
 const PORTAL_BACKENDS: &[Backend] = &[
-    passive_backend("xdg-desktop-portal-hypr", "portal"),
-    passive_backend("xdg-desktop-portal-wlr", "portal"),
-    passive_backend("xdg-desktop-portal-gtk", "portal"),
-    passive_backend("xdg-desktop-portal-gnome", "portal"),
-    passive_backend("xdg-desktop-portal-kde", "portal"),
-    passive_backend("xdg-desktop-portal", "portal"),
+    generic_passive_backend("xdg-desktop-portal-hyprland", "portal"),
+    generic_passive_backend("xdg-desktop-portal-hypr", "portal"),
+    generic_passive_backend("xdg-desktop-portal-wlr", "portal"),
+    generic_passive_backend("xdg-desktop-portal-gtk", "portal"),
+    generic_passive_backend("xdg-desktop-portal-gnome", "portal"),
+    generic_passive_backend("xdg-desktop-portal-kde", "portal"),
+    generic_passive_backend("xdg-desktop-portal", "portal"),
 ];
 
 const POLKIT_BACKENDS: &[Backend] = &[
-    passive_backend("hyprpolkitagent", "polkit"),
-    passive_backend("polkit_gnome_authentication_agent_1", "polkit"),
-    passive_backend("polkit-gnome-authentication-agent-1", "polkit"),
-    passive_backend("lxqt-policykit-agent", "polkit"),
-    passive_backend("mate-polkit", "polkit"),
-    passive_backend("polkit-mate", "polkit"),
-    passive_backend("xembeds-polkit-agent", "polkit"),
+    generic_passive_backend("hyprpolkitagent", "polkit"),
+    generic_passive_backend("polkit_gnome_authentication_agent_1", "polkit"),
+    generic_passive_backend("polkit-gnome-authentication-agent-1", "polkit"),
+    generic_passive_backend("lxqt-policykit-agent", "polkit"),
+    generic_passive_backend("mate-polkit", "polkit"),
+    generic_passive_backend("polkit-mate", "polkit"),
+    generic_passive_backend("xembeds-polkit-agent", "polkit"),
 ];
 
 const TRAY_BACKENDS: &[Backend] = &[
-    backend("stalonetray", "tray"),
-    backend("trayion", "tray"),
-    backend("autotray", "tray"),
-    backend("ksnip-tray", "tray"),
+    generic_backend("stalonetray", "tray"),
+    generic_backend("trayion", "tray"),
+    generic_backend("autotray", "tray"),
+    generic_backend("ksnip-tray", "tray"),
 ];
 
-/// The first backend of a category that is running.
-fn pick_backend(backends: &[Backend], process_names: &HashSet<String>) -> Option<Backend> {
-    backends.iter().copied().find(|backend| {
-        process_names
-            .iter()
-            .any(|process_name| backend.matches(process_name))
-    })
+/// A backend that is running.
+#[derive(Debug, Clone)]
+struct Detected {
+    backend: Backend,
+    /// The binary the backend runs, if it could be read.
+    exe: Option<String>,
 }
 
-fn detect_ecosystem_info(process_names: &HashSet<String>) -> EcosystemInfo {
-    let wallpaper = pick_backend(WALLPAPER_BACKENDS, process_names);
-    let bar = pick_backend(BAR_BACKENDS, process_names);
-    let launcher = pick_backend(LAUNCHER_BACKENDS, process_names);
-    let notifications = pick_backend(NOTIFICATION_BACKENDS, process_names);
-    let clipboard = pick_backend(CLIPBOARD_BACKENDS, process_names);
-    let screenshot = pick_backend(SCREENSHOT_BACKENDS, process_names);
-    let idle = pick_backend(IDLE_BACKENDS, process_names);
-    let lock = pick_backend(LOCK_BACKENDS, process_names);
-    let portal = pick_backend(PORTAL_BACKENDS, process_names);
-    let polkit = pick_backend(POLKIT_BACKENDS, process_names);
-    let tray = pick_backend(TRAY_BACKENDS, process_names);
-    let picker = pick_backend(PICKER_BACKENDS, process_names);
+impl Detected {
+    /// The name of the implementation that runs, if it is known.
+    fn implementation(&self) -> Option<&str> {
+        self.exe.as_deref().and_then(|path| {
+            Path::new(path)
+                .file_name()
+                .and_then(|name| name.to_str())
+                .filter(|name| !name.is_empty())
+        })
+    }
+}
+
+/// The first backend of a category that is running.
+fn pick_backend(backends: &[Backend], processes: &[Process]) -> Option<Detected> {
+    // The name of the binary tells the implementations of a kind apart, while
+    // the name of the process does not: the kernel keeps only the first 15
+    // characters of it.
+    for backend in backends {
+        if let Some(process) = processes
+            .iter()
+            .find(|process| process.exe_name() == Some(backend.process))
+        {
+            return Some(Detected {
+                backend: *backend,
+                exe: process.exe.clone(),
+            });
+        }
+    }
+
+    for backend in backends {
+        if let Some(process) = processes
+            .iter()
+            .find(|process| backend.matches(&process.comm))
+        {
+            return Some(Detected {
+                backend: *backend,
+                exe: process.exe.clone(),
+            });
+        }
+    }
+
+    None
+}
+
+fn detect_ecosystem_info(processes: &[Process]) -> EcosystemInfo {
+    let wallpaper = pick_backend(WALLPAPER_BACKENDS, processes);
+    let bar = pick_backend(BAR_BACKENDS, processes);
+    let launcher = pick_backend(LAUNCHER_BACKENDS, processes);
+    let notifications = pick_backend(NOTIFICATION_BACKENDS, processes);
+    let clipboard = pick_backend(CLIPBOARD_BACKENDS, processes);
+    let screenshot = pick_backend(SCREENSHOT_BACKENDS, processes);
+    let idle = pick_backend(IDLE_BACKENDS, processes);
+    let lock = pick_backend(LOCK_BACKENDS, processes);
+    let portal = pick_backend(PORTAL_BACKENDS, processes);
+    let polkit = pick_backend(POLKIT_BACKENDS, processes);
+    let tray = pick_backend(TRAY_BACKENDS, processes);
+    let picker = pick_backend(PICKER_BACKENDS, processes);
 
     // Reading a version starts a process per backend, so all probes run at
     // the same time instead of one after the other.
     let picks = [
-        wallpaper,
-        bar,
-        launcher,
-        notifications,
-        clipboard,
-        screenshot,
-        idle,
-        lock,
-        portal,
-        polkit,
-        tray,
-        picker,
+        &wallpaper,
+        &bar,
+        &launcher,
+        &notifications,
+        &clipboard,
+        &screenshot,
+        &idle,
+        &lock,
+        &portal,
+        &polkit,
+        &tray,
+        &picker,
     ];
     let versions = probe_versions(&picks);
 
@@ -409,8 +501,8 @@ fn detect_ecosystem_info(process_names: &HashSet<String>) -> EcosystemInfo {
 }
 
 /// Read the versions of the running backends, in parallel.
-fn probe_versions(picks: &[Option<Backend>]) -> HashMap<&'static str, Option<String>> {
-    let active: Vec<Backend> = picks.iter().filter_map(|pick| *pick).collect();
+fn probe_versions(picks: &[&Option<Detected>]) -> HashMap<&'static str, Option<String>> {
+    let active: Vec<&Detected> = picks.iter().filter_map(|pick| pick.as_ref()).collect();
     if active.is_empty() {
         return HashMap::new();
     }
@@ -418,14 +510,20 @@ fn probe_versions(picks: &[Option<Backend>]) -> HashMap<&'static str, Option<Str
     std::thread::scope(|scope| {
         let handles: Vec<_> = active
             .iter()
-            .map(|backend| {
+            .map(|detected| {
                 scope.spawn(move || {
-                    let version = if backend.probe {
-                        detect_version_with_timeout(backend.process, VERSION_PROBE_TIMEOUT)
+                    let version = if detected.backend.probe {
+                        detect_version_with_timeout(
+                            &version_command(detected),
+                            detected
+                                .implementation()
+                                .unwrap_or(detected.backend.process),
+                            VERSION_PROBE_TIMEOUT,
+                        )
                     } else {
                         None
                     };
-                    (backend.label, version)
+                    (detected.backend.label, version)
                 })
             })
             .collect();
@@ -437,19 +535,39 @@ fn probe_versions(picks: &[Option<Backend>]) -> HashMap<&'static str, Option<Str
     })
 }
 
-/// The label and version of a detected backend.
-fn ecosystem_entry(
-    backend: Option<Backend>,
-    versions: &HashMap<&'static str, Option<String>>,
-) -> Option<(String, Option<String>)> {
-    let backend = backend?;
-    let version = versions.get(backend.label).cloned().flatten();
-    Some((backend.label.to_string(), version))
+/// The command that reads the version of a running backend.
+///
+/// The binary that runs is used when it can be found, because a backend does
+/// not have to be in the search path to run.
+fn version_command(detected: &Detected) -> String {
+    match &detected.exe {
+        Some(path) if Path::new(path).is_file() => path.clone(),
+        _ => detected.backend.process.to_string(),
+    }
 }
 
-fn detect_version_with_timeout(process: &str, timeout: Duration) -> Option<String> {
-    let process = process.to_string();
-    with_timeout(timeout, move || detect_version(&process)).flatten()
+/// The label and version of a detected backend.
+fn ecosystem_entry(
+    detected: Option<Detected>,
+    versions: &HashMap<&'static str, Option<String>>,
+) -> Option<(String, Option<String>)> {
+    let detected = detected?;
+    let version = versions.get(detected.backend.label).cloned().flatten();
+    let label = if detected.backend.generic {
+        detected
+            .implementation()
+            .unwrap_or(detected.backend.label)
+            .to_string()
+    } else {
+        detected.backend.label.to_string()
+    };
+    Some((label, version))
+}
+
+fn detect_version_with_timeout(command: &str, name: &str, timeout: Duration) -> Option<String> {
+    let command = command.to_string();
+    let name = name.to_string();
+    with_timeout(timeout, move || detect_version(&command, &name)).flatten()
 }
 
 /// Run `work` on its own thread and give up on it after `timeout`.
@@ -468,8 +586,8 @@ fn with_timeout<T: Send + 'static>(
     receiver.recv_timeout(timeout).ok()
 }
 
-fn detect_version(process: &str) -> Option<String> {
-    let output = std::process::Command::new(process)
+fn detect_version(command: &str, name: &str) -> Option<String> {
+    let output = std::process::Command::new(command)
         .args(["--version"])
         .output()
         .ok()?;
@@ -485,7 +603,7 @@ fn detect_version(process: &str) -> Option<String> {
 
         // Tools print their name in front of the version, sometimes in a
         // different case, so drop it before looking for the number.
-        let rest = strip_name_prefix(trimmed, process)
+        let rest = strip_name_prefix(trimmed, name)
             .or_else(|| strip_name_prefix(trimmed, "version"))
             .unwrap_or(trimmed)
             .trim_start_matches([' ', ':', '='])
@@ -520,13 +638,28 @@ fn first_version_number(text: &str) -> Option<&str> {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
     use std::time::{Duration, Instant};
 
     use super::{
-        detect_ecosystem_info, first_version_number, parse_gtk_settings, strip_name_prefix,
-        with_timeout,
+        Process, detect_ecosystem_info, first_version_number, parse_gtk_settings,
+        strip_name_prefix, with_timeout,
     };
+
+    /// A process the way the process list shows it.
+    fn process(comm: &str) -> Process {
+        Process {
+            comm: comm.to_string(),
+            exe: None,
+        }
+    }
+
+    /// A process together with the binary it runs.
+    fn running(comm: &str, exe: &str) -> Process {
+        Process {
+            comm: comm.to_string(),
+            exe: Some(exe.to_string()),
+        }
+    }
 
     #[test]
     fn parses_gtk_settings() {
@@ -559,14 +692,14 @@ gtk-font-name=Noto Sans,  10
 
     #[test]
     fn detects_hyprland_ecosystem_processes() {
-        let processes = HashSet::from([
-            "hyprpaper".to_string(),
-            "waybar".to_string(),
-            "fuzzel".to_string(),
-            "mako".to_string(),
-            "hypridle".to_string(),
-            "hyprlock".to_string(),
-        ]);
+        let processes = vec![
+            process("hyprpaper"),
+            process("waybar"),
+            process("fuzzel"),
+            process("mako"),
+            process("hypridle"),
+            process("hyprlock"),
+        ];
 
         let ecosystem = detect_ecosystem_info(&processes);
         assert_eq!(
@@ -597,11 +730,11 @@ gtk-font-name=Noto Sans,  10
 
     #[test]
     fn detects_portal_polkit_and_tray_backends() {
-        let processes: HashSet<String> =
-            ["xdg-desktop-portal-hypr", "hyprpolkitagent", "stalonetray"]
-                .into_iter()
-                .map(String::from)
-                .collect();
+        let processes = vec![
+            process("xdg-desktop-portal-hypr"),
+            process("hyprpolkitagent"),
+            process("stalonetray"),
+        ];
 
         let ecosystem = detect_ecosystem_info(&processes);
         assert_eq!(
@@ -620,10 +753,7 @@ gtk-font-name=Noto Sans,  10
 
     #[test]
     fn passive_backends_are_not_started_for_their_version() {
-        let processes: HashSet<String> = ["xdg-desktop-portal-hypr"]
-            .into_iter()
-            .map(String::from)
-            .collect();
+        let processes = vec![process("xdg-desktop-portal-hypr")];
 
         let ecosystem = detect_ecosystem_info(&processes);
         let (_, version) = ecosystem.portal.expect("portal detected");
@@ -651,7 +781,7 @@ gtk-font-name=Noto Sans,  10
 
     #[test]
     fn matches_a_process_name_the_kernel_truncated() {
-        let processes: HashSet<String> = ["xdg-desktop-por".to_string()].into_iter().collect();
+        let processes = vec![process("xdg-desktop-por")];
 
         let ecosystem = detect_ecosystem_info(&processes);
         assert_eq!(
@@ -662,7 +792,7 @@ gtk-font-name=Noto Sans,  10
 
     #[test]
     fn does_not_match_a_process_name_that_is_merely_shorter() {
-        let processes: HashSet<String> = ["polkit".to_string()].into_iter().collect();
+        let processes = vec![process("polkit")];
 
         let ecosystem = detect_ecosystem_info(&processes);
         assert!(ecosystem.polkit.is_none());
@@ -689,9 +819,7 @@ gtk-font-name=Noto Sans,  10
 
     #[test]
     fn detects_the_wallpaper_and_launcher_backends() {
-        let processes: HashSet<String> = ["awww-daemon".to_string(), "bemenu".to_string()]
-            .into_iter()
-            .collect();
+        let processes = vec![process("awww-daemon"), process("bemenu")];
 
         let ecosystem = detect_ecosystem_info(&processes);
         assert_eq!(
@@ -708,9 +836,62 @@ gtk-font-name=Noto Sans,  10
     }
 
     #[test]
+    fn shows_the_implementation_of_a_generic_backend() {
+        let processes = vec![running("stalonetray", "/usr/bin/stalonetray")];
+
+        let ecosystem = detect_ecosystem_info(&processes);
+        assert_eq!(
+            ecosystem.tray.as_ref().map(|(label, _)| label.as_str()),
+            Some("stalonetray")
+        );
+    }
+
+    #[test]
+    fn tells_the_portal_implementations_apart() {
+        // the kernel keeps only the first 15 characters of a process name, so
+        // every portal implementation looks the same in the process list
+        let processes = vec![
+            running("xdg-desktop-por", "/usr/lib/xdg-desktop-portal-hyprland"),
+            running("xdg-desktop-por", "/usr/lib/xdg-desktop-portal-gtk"),
+            running("xdg-desktop-por", "/usr/lib/xdg-desktop-portal"),
+        ];
+
+        let ecosystem = detect_ecosystem_info(&processes);
+        assert_eq!(
+            ecosystem.portal.as_ref().map(|(label, _)| label.as_str()),
+            Some("xdg-desktop-portal-hyprland")
+        );
+    }
+
+    #[test]
+    fn finds_the_only_portal_implementation_that_runs() {
+        let processes = vec![running(
+            "xdg-desktop-por",
+            "/usr/lib/xdg-desktop-portal-gtk",
+        )];
+
+        let ecosystem = detect_ecosystem_info(&processes);
+        assert_eq!(
+            ecosystem.portal.as_ref().map(|(label, _)| label.as_str()),
+            Some("xdg-desktop-portal-gtk")
+        );
+    }
+
+    #[test]
+    fn keeps_the_label_of_a_backend_that_names_itself() {
+        let processes = vec![running("waybar", "/usr/bin/waybar")];
+
+        let ecosystem = detect_ecosystem_info(&processes);
+        assert_eq!(
+            ecosystem.bar.as_ref().map(|(label, _)| label.as_str()),
+            Some("waybar")
+        );
+    }
+
+    #[test]
     fn recognises_a_polkit_agent_with_a_truncated_name() {
         // the kernel keeps only the first 15 characters of a process name
-        let processes: HashSet<String> = ["polkit_gnome_au".to_string()].into_iter().collect();
+        let processes = vec![process("polkit_gnome_au")];
 
         let ecosystem = detect_ecosystem_info(&processes);
         assert_eq!(
