@@ -466,6 +466,8 @@ cargo test
 
 The release profile enables thin LTO and symbol stripping, so `cargo build --release --locked` produces a compact single binary.
 
+A man page lives at `contrib/hyprfetch.1` and ships with the releases.
+
 An Arch packaging template lives at `contrib/PKGBUILD`:
 
 ```bash

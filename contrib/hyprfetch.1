@@ -1,0 +1,246 @@
+.TH HYPRFETCH 1 "2026-10-23" "hyprfetch 0.2.0" "User Commands"
+.SH NAME
+hyprfetch \- Hyprland-native fetch utility for system, session and rice state
+.SH SYNOPSIS
+.B hyprfetch
+.RI [ OPTIONS ]
+.SH DESCRIPTION
+.B hyprfetch
+prints the state of the machine and of the running Hyprland session next to a
+distro logo, in the style of a classic fetch screenshot. It reports the
+operating system, the hardware, the desktop theme, and the live compositor
+state such as the active workspace, the focused window, the monitors, the
+layer-shell surfaces and the running desktop daemons.
+.PP
+Modules that need Hyprland report why they are unavailable instead of
+aborting the run, so the tool stays usable on a plain desktop.
+.PP
+The logo is chosen from
+.I os-release
+when
+.B --logo auto
+is used, which is the default. When the distribution is not known, the
+generic Linux logo is used.
+.SH OPTIONS
+.TP
+.BR \-c ", " \-\-config " " \fIPATH\fR
+Read the configuration from
+.I PATH
+instead of the default location.
+.TP
+.B \-\-init\-config
+Write a starter configuration to the default location. An existing file is
+never overwritten.
+.TP
+.B \-\-print\-config
+Print the default configuration to standard output and exit.
+.TP
+.B \-\-no\-config
+Ignore the configuration file for this run.
+.TP
+.B \-\-plain
+Print plain key and value rows without the logo, the header or the colour
+bars.
+.TP
+.B \-\-share
+Use the share preset, which leads with the theme and the live session
+state. It is meant for rice screenshots.
+.TP
+.B \-\-animated
+Show a spinner while the modules are collected.
+.TP
+.B \-\-watch
+Keep running and redraw the output in place. The screen is only cleared
+when standard output is a terminal.
+.TP
+.BI \-\-watch\-interval " " \fISECONDS\fR
+How long to wait between two refreshes of
+.BR \-\-watch .
+Defaults to 1.
+.TP
+.BI \-\-style " " \fISTYLE\fR
+The layout to use:
+.B split
+places the logo next to the rows,
+.B compact
+drops the logo and prints one row per module, and
+.B minimal
+prints a bare
+.IR key : value
+list.
+.TP
+.BI \-\-color " " \fIMODE\fR
+When to colour the output:
+.B auto
+follows the terminal and the
+.B NO_COLOR
+environment variable,
+.B always
+colours it and
+.B never
+turns it off.
+.TP
+.BR \-m ", " \-\-modules " " \fIMODULES\fR
+A comma separated list of the modules to show. The options configured for
+these modules in the configuration file are kept.
+.TP
+.BI \-\-theme " " \fIPALETTE\fR
+The colour palette:
+.BR hypr ,
+.BR mono ,
+.B catppuccin
+or
+.BR dracula .
+.TP
+.BI \-\-logo " " \fIPRESET\fR
+The logo to use. Besides the distribution logos there are
+.B minimal
+for the wordmark and
+.B none
+to hide the logo. Run
+.B hyprfetch \-\-list\-logos
+for the full list.
+.TP
+.B \-\-json
+Print the collected modules as JSON.
+.TP
+.B \-\-diagnostics
+Print the status of every module, including the ones that are
+unavailable, and a summary of the counts.
+.TP
+.B \-\-list\-logos
+Print the names of the available logos and exit.
+.TP
+.B \-\-list\-modules
+Print the names of the available modules and exit.
+.TP
+.B \-\-list\-themes
+Print the names of the available palettes and exit.
+.TP
+.BR \-h ", " \-\-help
+Print a short help text and exit.
+.TP
+.BR \-V ", " \-\-version
+Print the version and exit.
+.SH CONFIGURATION
+The configuration file is read from
+.I $XDG_CONFIG_HOME/hyprfetch/config.toml
+when
+.B XDG_CONFIG_HOME
+is set, and from
+.I ~/.config/hyprfetch/config.toml
+otherwise.
+.PP
+It holds the appearance, the logo, the order of the modules, the options of
+each module and the command plugins. The order of the
+.B [[modules]]
+entries is the order they are printed in, and an entry may carry its own
+options:
+.PP
+.nf
+.RS
+[[modules]]
+name = "disk"
+mounts = ["/", "/home"]
+
+[[modules]]
+name = "hypr-devices"
+compact = false
+.RE
+.fi
+.PP
+The
+.B mounts
+option of the disk module lists the mount points it reports. The
+.B compact
+option of a module switches it between a single summary row and one row per
+detail.
+.SH PLUGINS
+A plugin runs a command and turns its output into rows, which lets a user
+add information that
+.B hyprfetch
+does not know about:
+.PP
+.nf
+.RS
+[[plugins]]
+name = "music"
+command = "sh"
+args = ["-c", "printf 'Track\\t%s\\n' \\"Lo-fi radio\\""]
+timeout_ms = 1000
+.RE
+.fi
+.PP
+A single plain line becomes one row using the
+.B label
+or the
+.B name
+of the plugin.
+.B Key<TAB>Value
+and
+.B Key=Value
+lines become explicit rows. A plugin that fails or runs into its timeout
+keeps the reason in the output.
+.SH ENVIRONMENT
+.TP
+.B XDG_CONFIG_HOME
+The directory the configuration is read from.
+.TP
+.B NO_COLOR
+Keeps the colour out of the output when
+.B \-\-color auto
+is used.
+.TP
+.B USER ", " USERNAME ", " HOSTNAME
+Used for the session title.
+.SH EXIT STATUS
+.B hyprfetch
+exits with 0 when it printed its output, and with a non zero status when it
+could not run at all. A module that is unavailable does not change the
+exit status.
+.SH EXAMPLES
+Show the default output:
+.PP
+.nf
+.RS
+hyprfetch
+.RE
+.fi
+.PP
+A screenshot for a rice:
+.PP
+.nf
+.RS
+hyprfetch --share
+.RE
+.fi
+.PP
+Only a few modules, without the logo:
+.PP
+.nf
+.RS
+hyprfetch --plain --modules os,kernel,memory,hyprland
+.RE
+.fi
+.PP
+Keep the session state on screen:
+.PP
+.nf
+.RS
+hyprfetch --watch --watch-interval 2
+.RE
+.fi
+.PP
+Check what a machine without Hyprland would report:
+.PP
+.nf
+.RS
+hyprfetch --diagnostics
+.RE
+.fi
+.SH SEE ALSO
+.BR hyprctl (1)
+.PP
+The wiki at
+.UR https://github.com/polarours/hyprfetch
+.UE

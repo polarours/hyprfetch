@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A man page at `contrib/hyprfetch.1`, shipped with the releases and with the Arch package
+
 - **System modules**: realtime CPU utilisation, GPU utilisation for NVIDIA, AMD and Intel
 - **Hyprland modules**: hypr-workspace-history (the window that was last focused in each workspace)
 - **Ecosystem detection**: version info for detected daemons, now covering portal, polkit, tray and colour picker backends as well
