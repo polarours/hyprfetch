@@ -338,6 +338,10 @@ args = ["-c", "printf 'Track\t%s\n' \"Lo-fi radio\""]
 timeout_ms = 1000
 ```
 
+A plugin that fails or runs into its timeout keeps its reason in the output, so a
+broken plugin is never mistaken for a plugin that produced no rows. The modules that
+do not apply to the machine stay out of the output instead.
+
 ## Module IDs
 
 - `os`
