@@ -76,14 +76,24 @@ impl Module for AudioModule {
     fn run(&self, ctx: &ModuleContext<'_>, _config: &ModuleConfig) -> ModuleOutput {
         match ctx.providers.system.audio_info() {
             Ok(info) => {
-                let display = match &info.device {
+                let mut display = match &info.device {
                     Some(device) => format!("{} ({})", info.backend, device),
                     None => info.backend.clone(),
                 };
+                if info.muted {
+                    display.push_str(", muted");
+                } else if let Some(volume) = info.volume_percent {
+                    display.push_str(&format!(", {volume}%"));
+                }
                 ModuleOutput::ok(
                     self.id(),
                     vec![OutputRow::new("Audio", display)],
-                    json!({ "backend": info.backend, "device": info.device }),
+                    json!({
+                        "backend": info.backend,
+                        "device": info.device,
+                        "volume_percent": info.volume_percent,
+                        "muted": info.muted,
+                    }),
                 )
             }
             Err(error) => ModuleOutput::unavailable(self.id(), error.to_string()),

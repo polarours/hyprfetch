@@ -28,6 +28,19 @@ pub struct NetworkInfo {
 pub struct AudioInfo {
     pub backend: String,
     pub device: Option<String>,
+    /// The volume of the default device in percent.
+    pub volume_percent: Option<u8>,
+    /// Whether the default device is muted.
+    pub muted: bool,
+}
+
+/// The default device of the audio server.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AudioDevice {
+    pub name: String,
+    /// The volume in percent.
+    pub volume_percent: Option<u8>,
+    pub muted: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -342,7 +355,7 @@ fn read_temperature_info() -> Result<TemperatureInfo, ProviderError> {
     })
 }
 
-fn detect_pipewire_default_sink() -> Option<String> {
+fn detect_pipewire_default_sink() -> Option<AudioDevice> {
     let output = run_with_timeout("wpctl", &["status"], AUDIO_PROBE_TIMEOUT)?;
     parse_wpctl_default_sink(&output)
 }
@@ -350,8 +363,8 @@ fn detect_pipewire_default_sink() -> Option<String> {
 /// The default sink in the output of `wpctl status`.
 ///
 /// The sinks are listed under a "Sinks:" heading and the default one is
-/// marked with a star.
-fn parse_wpctl_default_sink(output: &str) -> Option<String> {
+/// marked with a star. Its line also holds the volume and the mute state.
+fn parse_wpctl_default_sink(output: &str) -> Option<AudioDevice> {
     let mut in_sinks = false;
     for line in output.lines() {
         let trimmed = line.trim();
@@ -371,18 +384,44 @@ fn parse_wpctl_default_sink(output: &str) -> Option<String> {
             continue;
         };
         // the line starts with the index of the sink, for example "52. "
-        let name = match rest.split_once(". ") {
-            Some((index, name)) if index.chars().all(|character| character.is_ascii_digit()) => {
-                name
+        let rest = match rest.split_once(". ") {
+            Some((index, rest)) if index.chars().all(|character| character.is_ascii_digit()) => {
+                rest
             }
             _ => rest,
         };
-        let name = name.split('[').next().unwrap_or(name).trim();
+        // the volume and the mute state are in brackets behind the name
+        let (name, state) = match rest.split_once('[') {
+            Some((name, state)) => (name.trim(), state),
+            None => (rest.trim(), ""),
+        };
         if !name.is_empty() {
-            return Some(name.to_string());
+            let (volume_percent, muted) = parse_wpctl_sink_state(state);
+            return Some(AudioDevice {
+                name: name.to_string(),
+                volume_percent,
+                muted,
+            });
         }
     }
     None
+}
+
+/// The volume and the mute state behind a sink in `wpctl status`.
+///
+/// The state looks like "vol: 0.70" and turns into "vol: 1.00 MUTED" when
+/// the sink is muted.
+fn parse_wpctl_sink_state(state: &str) -> (Option<u8>, bool) {
+    let state = state.trim().trim_end_matches(']');
+    let muted = state.contains("MUTED");
+    let volume = state
+        .split_once(':')
+        .map(|(_, value)| value.trim())
+        .and_then(|value| value.split_whitespace().next())
+        .and_then(|value| value.parse::<f64>().ok())
+        .map(|value| ((value * 100.0).round() as i32).clamp(0, 255) as u8);
+
+    (volume, muted)
 }
 
 fn read_audio_info() -> Result<AudioInfo, ProviderError> {
@@ -396,7 +435,9 @@ fn read_audio_info() -> Result<AudioInfo, ProviderError> {
         let device = detect_pipewire_default_sink();
         return Ok(AudioInfo {
             backend: "PipeWire".to_string(),
-            device,
+            device: device.as_ref().map(|device| device.name.clone()),
+            volume_percent: device.as_ref().and_then(|device| device.volume_percent),
+            muted: device.as_ref().is_some_and(|device| device.muted),
         });
     }
 
@@ -404,7 +445,9 @@ fn read_audio_info() -> Result<AudioInfo, ProviderError> {
         let device = detect_pulse_default_sink();
         return Ok(AudioInfo {
             backend: "PulseAudio".to_string(),
-            device,
+            device: device.as_ref().map(|device| device.name.clone()),
+            volume_percent: device.as_ref().and_then(|device| device.volume_percent),
+            muted: device.as_ref().is_some_and(|device| device.muted),
         });
     }
 
@@ -413,17 +456,40 @@ fn read_audio_info() -> Result<AudioInfo, ProviderError> {
     ))
 }
 
-fn detect_pulse_default_sink() -> Option<String> {
+fn detect_pulse_default_sink() -> Option<AudioDevice> {
     let output = run_with_timeout("pactl", &["info"], AUDIO_PROBE_TIMEOUT)?;
+    parse_pulse_default_sink(&output)
+}
+
+/// The default sink in the output of `pactl info`.
+fn parse_pulse_default_sink(output: &str) -> Option<AudioDevice> {
+    let mut name = None;
+    let mut volume_percent = None;
+    let mut muted = false;
+
     for line in output.lines() {
         if let Some(sink) = line.strip_prefix("Default Sink: ") {
             let sink = sink.trim();
             if !sink.is_empty() {
-                return Some(sink.to_string());
+                name = Some(sink.to_string());
             }
+        } else if let Some(volume) = line.strip_prefix("Default Sink Volume: ") {
+            volume_percent = volume
+                .trim()
+                .trim_end_matches('%')
+                .trim()
+                .parse::<u8>()
+                .ok();
+        } else if let Some(state) = line.strip_prefix("Mute: ") {
+            muted = state.trim().eq_ignore_ascii_case("yes");
         }
     }
-    None
+
+    name.map(|name| AudioDevice {
+        name,
+        volume_percent,
+        muted,
+    })
 }
 
 impl SystemProvider {
@@ -527,7 +593,11 @@ mod tests {
         let output = "PipeWire 'pipewire-0' [1.6.9]\n \u{251c}\u{2500} Clients:\n        32. WirePlumber   [1.6.9]\n\nAudio\n \u{251c}\u{2500} Devices:\n \u{2502}      44. AD107 High Definition Audio Controller [alsa]\n \u{2502}  \n \u{251c}\u{2500} Sinks:\n \u{2502}  *   52. Built-in Audio Analog Stereo        [vol: 0.35]\n \u{2502}  \n \u{251c}\u{2500} Sources:\n \u{2502}  *   53. Built-in Audio Analog Stereo        [vol: 0.39]\n";
         assert_eq!(
             parse_wpctl_default_sink(output),
-            Some("Built-in Audio Analog Stereo".to_string())
+            Some(AudioDevice {
+                name: "Built-in Audio Analog Stereo".to_string(),
+                volume_percent: Some(35),
+                muted: false,
+            })
         );
     }
 
@@ -536,7 +606,37 @@ mod tests {
         let output = " \u{251c}\u{2500} Sinks:\n \u{2502}  *   52. HDA Intel PCH. Analog Stereo   [vol: 0.35]\n";
         assert_eq!(
             parse_wpctl_default_sink(output),
-            Some("HDA Intel PCH. Analog Stereo".to_string())
+            Some(AudioDevice {
+                name: "HDA Intel PCH. Analog Stereo".to_string(),
+                volume_percent: Some(35),
+                muted: false,
+            })
+        );
+    }
+
+    #[test]
+    fn reads_the_mute_state_of_a_sink() {
+        let output = " \u{251c}\u{2500} Sinks:\n \u{2502}  *   52. Built-in Audio Analog Stereo        [vol: 1.00 MUTED]\n";
+        assert_eq!(
+            parse_wpctl_default_sink(output),
+            Some(AudioDevice {
+                name: "Built-in Audio Analog Stereo".to_string(),
+                volume_percent: Some(100),
+                muted: true,
+            })
+        );
+    }
+
+    #[test]
+    fn reads_the_default_sink_from_pactl() {
+        let output = "Default Sink: alsa_output.pci-0000_00_1f.3.analog-stereo\nDefault Source: alsa_input.pci-0000_00_1f.3.analog-stereo\nDefault Sink Volume: 45%\nMute: no\n";
+        assert_eq!(
+            parse_pulse_default_sink(output),
+            Some(AudioDevice {
+                name: "alsa_output.pci-0000_00_1f.3.analog-stereo".to_string(),
+                volume_percent: Some(45),
+                muted: false,
+            })
         );
     }
 

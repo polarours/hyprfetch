@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   shortcuts modules can list every rule and every global shortcut
 - The ecosystem module names the portal, polkit and tray implementation that runs, instead of only the kind of it
 - The layouts module reports the layout every workspace is tiled with, and can list them one by one
+- The audio module reports the volume of the default device and whether it is muted
 
 - A narrow terminal keeps the logo by falling back to a narrower drawing of it, so the split layout survives down to about 55 columns instead of 76
 - A man page at `contrib/hyprfetch.1`, shipped with the releases and with the Arch package
