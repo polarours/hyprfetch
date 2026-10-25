@@ -273,7 +273,85 @@ fn read_datetime_info() -> Result<DatetimeInfo, ProviderError> {
     })
 }
 
+/// The chips that measure the temperature of the processor.
+const CPU_CHIPS: &[&str] = &["coretemp", "k10temp", "zenpower"];
+
+/// The sensors of a chip that hold the temperature of the processor.
+const CPU_SENSORS: &[&str] = &["package id 0", "tctl", "tdie"];
+
+/// The thermal zones that hold the temperature of the processor.
+const CPU_ZONES: &[&str] = &["x86_pkg_temp", "tcpu", "cpu-thermal", "tdie"];
+
 fn read_temperature_info() -> Result<TemperatureInfo, ProviderError> {
+    // The processor reports its temperature through a chip of its own, which
+    // is the one a fetch wants to show. The other sensors of a machine are
+    // named after the part they belong to, which says little.
+    if let Some(info) = read_processor_temperature() {
+        return Ok(info);
+    }
+
+    read_hottest_thermal_zone()
+}
+
+/// The temperature of the processor, read from the chips of the kernel.
+fn read_processor_temperature() -> Option<TemperatureInfo> {
+    let entries = fs::read_dir("/sys/class/hwmon").ok()?;
+    let mut fallback = None;
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let Ok(chip) = fs::read_to_string(path.join("name")) else {
+            continue;
+        };
+        let chip = chip.trim().to_ascii_lowercase();
+        if !CPU_CHIPS.contains(&chip.as_str()) {
+            continue;
+        }
+
+        for sensor in fs::read_dir(path.join("temp*_input")).ok()? {
+            let Ok(sensor) = sensor else {
+                continue;
+            };
+            let Some(raw) = read_temperature_value(&sensor.path()) else {
+                continue;
+            };
+
+            let label = fs::read_to_string(
+                sensor.path().with_file_name(
+                    sensor
+                        .file_name()
+                        .to_string_lossy()
+                        .replace("_input", "_label"),
+                ),
+            )
+            .map(|label| label.trim().to_ascii_lowercase())
+            .unwrap_or_default();
+
+            if CPU_SENSORS.contains(&label.as_str()) {
+                return Some(TemperatureInfo {
+                    zone: "CPU".to_string(),
+                    temp_celsius: raw,
+                });
+            }
+            fallback.get_or_insert(TemperatureInfo {
+                zone: "CPU".to_string(),
+                temp_celsius: raw,
+            });
+        }
+    }
+
+    fallback
+}
+
+/// The temperature of a sensor, in degrees.
+fn read_temperature_value(path: &Path) -> Option<f64> {
+    let raw = fs::read_to_string(path).ok()?;
+    let raw = raw.trim().parse::<i64>().ok()?;
+    Some(raw as f64 / 1000.0)
+}
+
+/// The hottest thermal zone of the machine.
+fn read_hottest_thermal_zone() -> Result<TemperatureInfo, ProviderError> {
     let thermal_dir = Path::new("/sys/class/thermal");
     if !thermal_dir.exists() {
         return Err(ProviderError::not_found("/sys/class/thermal not available"));
@@ -305,6 +383,17 @@ fn read_temperature_info() -> Result<TemperatureInfo, ProviderError> {
 
     if zones.is_empty() {
         return Err(ProviderError::not_found("no thermal zones found"));
+    }
+
+    // A zone of the processor is better than the hottest zone of the board.
+    if let Some((_, temp)) = zones
+        .iter()
+        .find(|(zone, _)| CPU_ZONES.contains(&zone.to_ascii_lowercase().as_str()))
+    {
+        return Ok(TemperatureInfo {
+            zone: "CPU".to_string(),
+            temp_celsius: *temp,
+        });
     }
 
     zones.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));

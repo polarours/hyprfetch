@@ -47,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The rice module never reported the gaps, the blur or the animations, because Hyprland reports the gaps as a CSS string and the booleans in a field of their own
 - The theme module found no theme on a machine that points its configuration directory somewhere else, because it only looked in that directory
 - The colorscheme module reported "unknown" for every machine that keeps its theme in the GTK 4 settings, because it only read the GTK 3 settings
+- The temperature module reported the hottest sensor of the machine, which is often a sensor of the board and not of the processor
 - The split and column layouts rendered one character wider than the terminal, so the longest row wrapped
 - A value that had to be cut was cut in the middle of a word, so a version number could end up half shown
 - The SSID, signal and link speed of a wireless interface were missing on drivers that do not publish the wireless files in `/sys`, such as iwlwifi
