@@ -44,6 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The global shortcuts module never reported the application that claimed a shortcut, because Hyprland packs the application and the id of the shortcut into one name
 - The version of a backend was never found when its binary does not live in the search path, and the portal implementations could not be told apart because the kernel truncates their names to the same 15 characters
 - The layouts module asked hyprctl for an endpoint that no Hyprland version has, so it could never report anything
+- The rice module never reported the gaps, the blur or the animations, because Hyprland reports the gaps as a CSS string and the booleans in a field of their own
 - The split and column layouts rendered one character wider than the terminal, so the longest row wrapped
 - A value that had to be cut was cut in the middle of a word, so a version number could end up half shown
 - The SSID, signal and link speed of a wireless interface were missing on drivers that do not publish the wireless files in `/sys`, such as iwlwifi
