@@ -50,6 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The temperature module reported the hottest sensor of the machine, which is often a sensor of the board and not of the processor
 - The config file in the home directory was ignored on a machine that points its configuration directory somewhere else, so the built-in defaults were used instead
 - The split and column layouts rendered one character wider than the terminal, so the longest row wrapped
+- The minimal layout ignored the width of the terminal entirely, so every long row wrapped
 - A value that had to be cut was cut in the middle of a word, so a version number could end up half shown
 - The SSID, signal and link speed of a wireless interface were missing on drivers that do not publish the wireless files in `/sys`, such as iwlwifi
 - The amount of video memory of an NVIDIA card came from the size of a PCI bar, so a card with 8 GiB of memory was reported as having 16 MiB

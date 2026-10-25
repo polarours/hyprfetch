@@ -82,11 +82,18 @@ pub(super) fn render_text_with_width(
         return String::new();
     }
 
+    let key_width = max_key_width(&rows);
+
     if is_minimal {
-        return render_minimal(rows, runtime, colors_enabled);
+        if has_column_space(terminal_width, key_width, separator_width) {
+            return render_minimal(rows, runtime, colors_enabled, terminal_width, key_width);
+        }
+
+        // The key and a value do not fit next to each other, so the rows are
+        // written one under the other.
+        return render_dense(rows, runtime, colors_enabled, terminal_width);
     }
 
-    let key_width = max_key_width(&rows);
     let key_suffix_width = usize::from(!runtime.is_plain());
     if has_column_space(terminal_width, key_width, separator_width) {
         return render_column(
@@ -275,15 +282,23 @@ fn render_dense(
     output
 }
 
-fn render_minimal(rows: Vec<RenderRow>, runtime: &RuntimeConfig, colors_enabled: bool) -> String {
-    let key_width = max_key_width(&rows);
+fn render_minimal(
+    rows: Vec<RenderRow>,
+    runtime: &RuntimeConfig,
+    colors_enabled: bool,
+    terminal_width: Option<usize>,
+    key_width: usize,
+) -> String {
+    let separator_width = UnicodeWidthStr::width(runtime.appearance.separator.as_str());
+    let value_width =
+        terminal_width.and_then(|width| width.checked_sub(key_width + separator_width));
     render_info_lines(
         rows,
         runtime,
         colors_enabled,
         InfoRenderOptions {
             key_width,
-            value_width: None,
+            value_width,
             max_line_width: None,
             include_header: false,
         },
@@ -657,6 +672,51 @@ mod tests {
         )];
 
         for width in [40, 60, 80, 120, 200] {
+            let rendered = render_text_with_width(&outputs, &runtime, Some(width));
+            for line in rendered.lines() {
+                assert!(
+                    UnicodeWidthStr::width(line) <= width,
+                    "line is {} wide, the terminal is {width}: {line}",
+                    UnicodeWidthStr::width(line)
+                );
+            }
+        }
+    }
+
+    /// The minimal layout keeps its lines inside the terminal as well.
+    #[test]
+    fn keeps_the_minimal_layout_inside_the_terminal_width() {
+        let runtime = RuntimeConfig {
+            appearance: AppearanceConfig {
+                style: RenderStyle::Minimal,
+                palette: PaletteName::Hypr,
+                color: ColorMode::Never,
+                plain: false,
+                color_bars: false,
+                padding: 1,
+                separator: "  ".to_string(),
+            },
+            logo: LogoPreset::None,
+            resolved_logo: LogoPreset::None,
+            modules: vec![ModuleConfig::from(ModuleId::Os)],
+            plugins: Vec::new(),
+            json: false,
+            diagnostics: false,
+            animated: false,
+            watch: false,
+            watch_interval: 1,
+        };
+
+        let outputs = vec![ModuleOutput::ok(
+            ModuleId::Os,
+            vec![OutputRow::new(
+                "Ecosystem",
+                "bar:quickshell (0.3.2) launch:walker (2.17.2) notify:swaync (0.12.6)",
+            )],
+            json!({}),
+        )];
+
+        for width in [30, 40, 55, 80, 120] {
             let rendered = render_text_with_width(&outputs, &runtime, Some(width));
             for line in rendered.lines() {
                 assert!(
