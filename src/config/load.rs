@@ -31,12 +31,10 @@ pub fn load(cli: &CliArgs) -> Result<LoadedConfig> {
         });
     }
 
-    if let Some(path) = discover_default_path()
-        && path.exists()
-    {
-        let config = load_from_path(&path)?;
+    if let Some(path) = first_existing(&default_config_paths()) {
+        let config = load_from_path(path)?;
         return Ok(LoadedConfig {
-            path: Some(path),
+            path: Some(path.to_path_buf()),
             config,
         });
     }
@@ -48,10 +46,11 @@ pub fn load(cli: &CliArgs) -> Result<LoadedConfig> {
 }
 
 pub fn init_config(cli: &CliArgs) -> Result<PathBuf> {
-    let path =
-        cli.config.clone().or_else(discover_default_path).context(
-            "could not determine config path; set HOME, XDG_CONFIG_HOME, or use --config",
-        )?;
+    let path = cli
+        .config
+        .clone()
+        .or_else(|| default_config_paths().into_iter().next())
+        .context("could not determine config path; set HOME, XDG_CONFIG_HOME, or use --config")?;
 
     if path.exists() {
         bail!("config file already exists at {}", path.display());
@@ -97,14 +96,32 @@ pub(super) fn validate(config: &AppConfig) -> Result<()> {
     Ok(())
 }
 
-fn discover_default_path() -> Option<PathBuf> {
+/// The places the config file may live in.
+///
+/// A machine that points its configuration directory somewhere else keeps its
+/// config in the home directory, so both places are looked at.
+fn default_config_paths() -> Vec<PathBuf> {
+    let mut paths = Vec::new();
+
     if let Some(xdg_config_home) = env::var_os("XDG_CONFIG_HOME") {
-        return Some(PathBuf::from(xdg_config_home).join("hyprfetch/config.toml"));
+        paths.push(PathBuf::from(xdg_config_home).join("hyprfetch/config.toml"));
+    }
+    if let Some(home) = env::var_os("HOME") {
+        let home = PathBuf::from(home).join(".config/hyprfetch/config.toml");
+        if !paths.contains(&home) {
+            paths.push(home);
+        }
     }
 
-    env::var_os("HOME")
-        .map(PathBuf::from)
-        .map(|path| path.join(".config/hyprfetch/config.toml"))
+    paths
+}
+
+/// The first of the paths that holds a file.
+fn first_existing(paths: &[PathBuf]) -> Option<&Path> {
+    paths
+        .iter()
+        .find(|path| path.exists())
+        .map(PathBuf::as_path)
 }
 
 #[cfg(test)]
@@ -115,6 +132,25 @@ mod tests {
     use crate::model::PaletteName;
     use std::fs;
     use tempfile::tempdir;
+
+    #[test]
+    fn takes_the_config_from_the_first_place_that_holds_it() {
+        let dir = tempdir().unwrap();
+        let home = dir.path().join("home");
+        fs::create_dir_all(&home).unwrap();
+        let in_home = home.join("config.toml");
+        fs::write(&in_home, "version = 1\n").unwrap();
+
+        let paths = vec![dir.path().join("missing.toml"), in_home];
+        assert_eq!(first_existing(&paths), Some(paths[1].as_path()));
+    }
+
+    #[test]
+    fn has_no_config_when_no_place_holds_one() {
+        let dir = tempdir().unwrap();
+        let paths = vec![dir.path().join("missing.toml")];
+        assert_eq!(first_existing(&paths), None);
+    }
 
     #[test]
     fn loads_valid_toml_config() {
