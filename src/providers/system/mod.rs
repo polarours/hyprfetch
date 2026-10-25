@@ -26,7 +26,7 @@ pub use graphics::GpuInfo;
 pub use media::MediaPlayer;
 pub use memory::{MemoryInfo, SwapInfo};
 pub use os::{HostInfo, OsInfo, PackageInfo};
-pub use session::{AudioInfo, ColorschemeInfo, DatetimeInfo, NetworkInfo, TemperatureInfo};
+pub use session::{AudioInfo, DatetimeInfo, NetworkInfo, TemperatureInfo};
 pub use storage::{BatteryInfo, DiskInfo};
 
 #[derive(Debug, Clone, Error)]

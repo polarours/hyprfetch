@@ -147,16 +147,20 @@ impl Module for ColorschemeModule {
     }
 
     fn run(&self, ctx: &ModuleContext<'_>, _config: &ModuleConfig) -> ModuleOutput {
-        match ctx.providers.system.colorscheme_info() {
-            Ok(info) => {
-                let display = info
-                    .gtk_theme
-                    .clone()
-                    .unwrap_or_else(|| "unknown".to_string());
+        // The theme settings hold the colors of the desktop, and they are
+        // read the same way the theme module reads them.
+        match ctx.providers.theme.theme_info() {
+            Ok(theme) => {
+                let Some(gtk_theme) = theme.gtk_theme.clone() else {
+                    return ModuleOutput::unavailable(
+                        self.id(),
+                        "no GTK theme found in the theme settings",
+                    );
+                };
                 ModuleOutput::ok(
                     self.id(),
-                    vec![OutputRow::new("Colors", display)],
-                    json!({ "gtk_theme": info.gtk_theme }),
+                    vec![OutputRow::new("Colors", gtk_theme.clone())],
+                    json!({ "gtk_theme": gtk_theme }),
                 )
             }
             Err(error) => ModuleOutput::unavailable(self.id(), error.to_string()),
