@@ -64,6 +64,9 @@ name = "temperature"
 name = "audio"
 
 [[modules]]
+name = "media"
+
+[[modules]]
 name = "datetime"
 
 [[modules]]

@@ -438,3 +438,38 @@ fn list_themes_includes_new_palettes() {
         .stdout(predicate::str::contains("catppuccin"))
         .stdout(predicate::str::contains("dracula"));
 }
+
+/// The media module reads the players over MPRIS, which `playerctl` does for
+/// it. A stand-in for the tool keeps the test independent of the machine it
+/// runs on.
+#[test]
+#[cfg(unix)]
+fn reports_the_track_of_a_media_player() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let dir = tempdir().unwrap();
+    let tool = dir.path().join("playerctl");
+    fs::write(
+        &tool,
+        "#!/bin/sh\nprintf 'spotify\\tNever Gonna Give You Up\\tRick Astley\\tWhenever You Need Somebody\\tPlaying\\n'\n",
+    )
+    .unwrap();
+    fs::set_permissions(&tool, fs::Permissions::from_mode(0o755)).unwrap();
+
+    let path = format!(
+        "{}:{}",
+        dir.path().display(),
+        std::env::var("PATH").unwrap_or_default()
+    );
+
+    Command::cargo_bin("hyprfetch")
+        .unwrap()
+        .env("PATH", path)
+        .args(["--modules", "media", "--json"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "Rick Astley - Never Gonna Give You Up",
+        ))
+        .stdout(predicate::str::contains("playing"));
+}

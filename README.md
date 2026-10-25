@@ -6,7 +6,7 @@ Unlike generic fetch tools, it treats Hyprland runtime data as first-class outpu
 
 ## Current MVP
 
-- Basic system modules: OS, host, kernel, uptime, packages, shell, terminal, CPU (with realtime usage), GPU (with VRAM and usage), memory, swap, disk (with several mount points), battery, locale, network (with WiFi SSID/signal), audio, temperature, datetime
+- Basic system modules: OS, host, kernel, uptime, packages, shell, terminal, CPU (with realtime usage), GPU (with VRAM and usage), memory, swap, disk (with several mount points), battery, locale, network (with WiFi SSID/signal), audio (with the volume), media, temperature, datetime
 - Hyprland modules: version, health summary (sockets, wallpaper, bar, notifications, idle, lock, portal, polkit agent), runtime instance summary, current splash, active workspace, focused monitor and session summary, workspace history, workspace list with active/special/fullscreen state, active window state, cursor position, monitor summary, config health, workspace rules, input summary, keybind summary, global shortcut summary, layout summary, layer-shell surface summary, hypr-rice (layout, gaps, border, rounding, blur, animations)
 - Rice modules: GTK theme, icon theme, cursor theme, font, wallpaper backend
 - Ecosystem detection: wallpaper, bar, launcher, notification, clipboard, screenshot, idle, lock, portal, polkit, tray and colour picker daemons (with version info) when present
@@ -393,6 +393,7 @@ do not apply to the machine stay out of the output instead.
 - `network`
 - `temperature`
 - `audio`
+- `media`
 - `datetime`
 - `colorscheme`
 - `hyprland`
@@ -428,10 +429,11 @@ do not apply to the machine stay out of the output instead.
 - `/sys/class/power_supply`
 - `/proc/net/route`, `ip` command for network detection, and `iw` or `iwconfig` for the SSID, signal and link speed of a wireless interface
 - PipeWire/PulseAudio runtime sockets and the `wpctl` and `pactl` commands for audio detection
+- the `playerctl` command for the media players, which speak MPRIS over the session bus
 - environment variables, including Hyprland runtime variables and socket paths
 - Hyprland runtime instance directories under `$XDG_RUNTIME_DIR/hypr`
 - GTK settings files under `$XDG_CONFIG_HOME`
-- `hyprctl`, including `splash` for the current Hyprland splash and `-j` endpoints such as `cursorpos` for pointer location, `configerrors` for config health, `workspacerules` for workspace rule summaries, `binds` for keybind summaries, `globalshortcuts` for global shortcut summaries, `layouts` for available compositor layouts, `layers` for layer-shell surfaces, and `getoption` for the rice and workspace history modules
+- `hyprctl`, including `splash` for the current Hyprland splash and `-j` endpoints such as `cursorpos` for pointer location, `configerrors` for config health, `workspacerules` for workspace rule summaries, `binds` for keybind summaries, `globalshortcuts` for global shortcut summaries, `layers` for layer-shell surfaces, and `getoption` for the rice and workspace history modules
 - the `date` command for the current date and time
 - `rpm -qa` for RPM-based package counting
 - `/nix/store` for Nix package counting

@@ -35,6 +35,7 @@ pub fn build_module(id: ModuleId) -> Box<dyn Module> {
         ModuleId::Network => Box::new(system::NetworkModule),
         ModuleId::Temperature => Box::new(system::TemperatureModule),
         ModuleId::Audio => Box::new(system::AudioModule),
+        ModuleId::Media => Box::new(system::MediaModule),
         ModuleId::Datetime => Box::new(system::DatetimeModule),
         ModuleId::Colorscheme => Box::new(system::ColorschemeModule),
         ModuleId::Hyprland => Box::new(hyprland::HyprlandModule),

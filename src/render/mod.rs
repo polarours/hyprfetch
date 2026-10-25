@@ -140,6 +140,7 @@ fn output_priority(id: &str) -> usize {
         | ModuleId::Network
         | ModuleId::Temperature
         | ModuleId::Audio
+        | ModuleId::Media
         | ModuleId::Datetime
         | ModuleId::Colorscheme
         | ModuleId::Wallpaper
