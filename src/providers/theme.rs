@@ -114,12 +114,9 @@ impl ThemeProvider {
     }
 
     pub fn theme_info(&self) -> Result<ThemeInfo, ProviderError> {
-        let mut gtk4 = self
-            .load_settings_file(config_path("gtk-4.0/settings.ini"))
-            .unwrap_or_default();
-        let gtk3 = self
-            .load_settings_file(config_path("gtk-3.0/settings.ini"))
-            .unwrap_or_default();
+        let bases = config_bases();
+        let mut gtk4 = load_gtk_settings(&bases, "4.0");
+        let gtk3 = load_gtk_settings(&bases, "3.0");
         gtk4.merge_missing_from(gtk3);
         if gtk4.is_empty() {
             return Err(ProviderError::not_found(
@@ -147,19 +144,39 @@ impl ThemeProvider {
         }
         Ok(ecosystem)
     }
-
-    fn load_settings_file(&self, path: PathBuf) -> Result<ThemeInfo, ProviderError> {
-        let raw = fs::read_to_string(path).map_err(ProviderError::io)?;
-        Ok(parse_gtk_settings(&raw))
-    }
 }
 
-fn config_path(suffix: &str) -> PathBuf {
-    let base = env::var_os("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .or_else(|| env::var_os("HOME").map(|home| Path::new(&home).join(".config")))
-        .unwrap_or_else(|| PathBuf::from("."));
-    base.join(suffix)
+/// The directories the configuration of the user may live in.
+///
+/// A machine that points its configuration somewhere else keeps its theme in
+/// the home directory, so both places are looked at.
+fn config_bases() -> Vec<PathBuf> {
+    let mut bases = Vec::new();
+
+    if let Some(directory) = env::var_os("XDG_CONFIG_HOME") {
+        bases.push(PathBuf::from(directory));
+    }
+    if let Some(home) = env::var_os("HOME") {
+        let home = PathBuf::from(home).join(".config");
+        if !bases.contains(&home) {
+            bases.push(home);
+        }
+    }
+
+    bases
+}
+
+/// The settings of a GTK version, taken from the first file that holds them.
+fn load_gtk_settings(bases: &[PathBuf], version: &str) -> ThemeInfo {
+    for base in bases {
+        let path = base.join(format!("gtk-{version}/settings.ini"));
+        let Ok(raw) = fs::read_to_string(&path) else {
+            continue;
+        };
+        return parse_gtk_settings(&raw);
+    }
+
+    ThemeInfo::default()
 }
 
 fn parse_gtk_settings(raw: &str) -> ThemeInfo {
@@ -641,8 +658,8 @@ mod tests {
     use std::time::{Duration, Instant};
 
     use super::{
-        Process, detect_ecosystem_info, first_version_number, parse_gtk_settings,
-        strip_name_prefix, with_timeout,
+        Process, detect_ecosystem_info, first_version_number, load_gtk_settings,
+        parse_gtk_settings, strip_name_prefix, with_timeout,
     };
 
     /// A process the way the process list shows it.
@@ -688,6 +705,29 @@ gtk-font-name=Noto Sans,  10
 "#;
         let info = parse_gtk_settings(raw);
         assert_eq!(info.font.as_deref(), Some("Noto Sans, 10"));
+    }
+
+    #[test]
+    fn takes_the_theme_from_the_first_place_that_holds_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let home = dir.path().join("home");
+        std::fs::create_dir_all(home.join("gtk-4.0")).unwrap();
+        std::fs::write(
+            home.join("gtk-4.0/settings.ini"),
+            "[Settings]\ngtk-theme-name=FromHome\n",
+        )
+        .unwrap();
+
+        let bases = vec![dir.path().to_path_buf(), home.clone()];
+        let theme = load_gtk_settings(&bases, "4.0");
+        assert_eq!(theme.gtk_theme.as_deref(), Some("FromHome"));
+    }
+
+    #[test]
+    fn has_no_theme_when_no_place_holds_one() {
+        let dir = tempfile::tempdir().unwrap();
+        let bases = vec![dir.path().to_path_buf()];
+        assert!(load_gtk_settings(&bases, "4.0").is_empty());
     }
 
     #[test]
