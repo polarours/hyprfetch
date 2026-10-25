@@ -38,6 +38,19 @@ pub struct HyprOption {
     #[serde(rename = "str")]
     pub str_value: Option<String>,
     pub data: Option<Value>,
+    /// The value of a boolean option.
+    #[serde(rename = "bool")]
+    pub bool_value: Option<bool>,
+    /// The value of a gap option, which holds the gaps as a CSS string.
+    pub css: Option<String>,
+    /// The value of an option that holds two numbers.
+    pub vec2: Option<Vec<f64>>,
+    /// The value of an option with a type of its own.
+    pub custom: Option<String>,
+    /// The value of a gradient option.
+    pub gradient: Option<String>,
+    /// The value of a font weight option.
+    pub font_weight: Option<String>,
 }
 
 impl HyprlandProvider {

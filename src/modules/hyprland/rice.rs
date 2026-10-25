@@ -198,13 +198,63 @@ fn hypr_option_value(option: &HyprOption) -> Option<String> {
         })
         .or_else(|| option.int.map(|value| value.to_string()))
         .or_else(|| option.float.map(format_float))
+        .or_else(|| option.bool_value.map(|value| bool_label(value).to_string()))
+        .or_else(|| {
+            option
+                .css
+                .as_deref()
+                .filter(|value| !value.is_empty())
+                .map(shorten_gaps)
+        })
+        .or_else(|| {
+            option
+                .custom
+                .as_deref()
+                .filter(|value| !value.is_empty())
+                .map(ToString::to_string)
+        })
+        .or_else(|| {
+            option
+                .gradient
+                .as_deref()
+                .filter(|value| !value.is_empty())
+                .map(ToString::to_string)
+        })
+        .or_else(|| {
+            option
+                .font_weight
+                .as_deref()
+                .filter(|value| !value.is_empty())
+                .map(ToString::to_string)
+        })
+        .or_else(|| {
+            option.vec2.as_ref().map(|values| {
+                values
+                    .iter()
+                    .map(|value| format_float(*value))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            })
+        })
+}
+
+/// The gaps of a gap option, shortened when every side has the same size.
+///
+/// Hyprland reports the gaps as a CSS string such as "5 5 5 5", which reads
+/// better as "5" when all of them are the same.
+fn shorten_gaps(value: &str) -> String {
+    let parts = value.split_whitespace().collect::<Vec<_>>();
+    if parts.len() > 1 && parts.iter().all(|part| *part == parts[0]) {
+        return parts[0].to_string();
+    }
+
+    value.to_string()
 }
 
 fn hypr_option_bool(option: &HyprOption) -> Option<bool> {
     option
-        .data
-        .as_ref()
-        .and_then(json_value_bool)
+        .bool_value
+        .or_else(|| option.data.as_ref().and_then(json_value_bool))
         .or_else(|| option.str_value.as_deref().and_then(parse_bool_like_string))
         .or_else(|| option.int.map(|value| value != 0))
 }
@@ -302,5 +352,32 @@ mod tests {
 
         assert_eq!(hypr_option_value(&string_option).as_deref(), Some("master"));
         assert_eq!(hypr_option_bool(&bool_option), Some(true));
+    }
+
+    #[test]
+    fn parses_the_gap_and_boolean_options() {
+        // Hyprland reports the gaps as a CSS string and the booleans in a
+        // field of their own.
+        let gaps = HyprOption {
+            css: Some("5 5 5 5".to_string()),
+            ..HyprOption::default()
+        };
+        let blur = HyprOption {
+            bool_value: Some(true),
+            ..HyprOption::default()
+        };
+
+        assert_eq!(hypr_option_value(&gaps).as_deref(), Some("5"));
+        assert_eq!(hypr_option_bool(&blur), Some(true));
+    }
+
+    #[test]
+    fn keeps_the_gaps_of_every_side() {
+        let gaps = HyprOption {
+            css: Some("5 0 5 0".to_string()),
+            ..HyprOption::default()
+        };
+
+        assert_eq!(hypr_option_value(&gaps).as_deref(), Some("5 0 5 0"));
     }
 }
