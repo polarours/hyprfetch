@@ -54,6 +54,12 @@ The initial public release of hyprfetch, a Hyprland-native fetch utility.
   wraps or overflows.
 - A man page (`contrib/hyprfetch.1`) and an Arch PKGBUILD.
 
+- Every theme's foreground and background has been verified against the palettes of the
+  theme projects themselves (Tokyo Night, Catppuccin Mocha, Rosé Pine, Dracula, Atom One Dark,
+  Solarized, Nord, Everforest, Kanagawa and the rest), and the verified values are locked in a
+  test so a future edit cannot drift from the official palettes. The kanagawa, ayu and github
+  entries deliberately use the classic tones their terminal ports are built on.
+
 ### License
 
 - hyprfetch is released under GPL-3.0; see `LICENSE`.

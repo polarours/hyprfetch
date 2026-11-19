@@ -222,6 +222,60 @@ mod tests {
         assert_eq!(PaletteName::default(), PaletteName::Hypr);
     }
 
+    /// The foreground/background of every theme, verified against the
+    /// projects' own sources (2026-11-19):
+    ///
+    /// - hypr matches Tokyo Night Night (`folke/tokyonight.nvim`, fg from
+    ///   `colors/storm.lua`, bg from the `colors/night.lua` override);
+    /// - catppuccin matches Mocha (`catppuccin/palette`, colors text/base);
+    /// - rose-pine matches `rose-pine/palette` (roles text/base);
+    /// - dracula matches the official README palette table;
+    /// - one-dark matches Atom's HSL definitions (converted exactly);
+    /// - solarized-dark matches Ethan Schoonover's X resources (base03/base0);
+    /// - nord matches `nordtheme/nord` (nord0/nord4);
+    /// - everforest matches the medium-dark palette (`sainnhe/everforest`,
+    ///   bg0/fg);
+    /// - kanagawa uses the official `sumiInk3` tone, the background every
+    ///   terminal port of Kanagawa uses;
+    /// - ayu uses the classic official palette every ayu port is built on
+    ///   (`ayu-colors` later redesigned its dark theme with a new surface
+    ///   system);
+    /// - github uses the Dark Classic palette (GitHub's newer default dark
+    ///   ships a different, darker tone set);
+    /// - gruvbox, gruvbox-light, solarized-light, monokai and material match
+    ///   their widely published standards.
+    #[test]
+    fn foregrounds_and_backgrounds_match_their_official_palettes() {
+        let ground_truth = [
+            (PaletteName::Hypr, "#c0caf5", "#1a1b26"),
+            (PaletteName::Catppuccin, "#cdd6f4", "#1e1e2e"),
+            (PaletteName::Dracula, "#f8f8f2", "#282a36"),
+            (PaletteName::Gruvbox, "#ebdbb2", "#282828"),
+            (PaletteName::GruvboxLight, "#3c3836", "#fbf1c7"),
+            (PaletteName::Nord, "#d8dee9", "#2e3440"),
+            (PaletteName::OneDark, "#abb2bf", "#282c34"),
+            (PaletteName::SolarizedDark, "#839496", "#002b36"),
+            (PaletteName::SolarizedLight, "#657b83", "#fdf6e3"),
+            (PaletteName::RosePine, "#e0def4", "#191724"),
+            (PaletteName::Ayu, "#b3b1ad", "#0a0e14"),
+            (PaletteName::Everforest, "#d3c6aa", "#2d353b"),
+            (PaletteName::Kanagawa, "#dcd7ba", "#1f1f28"),
+            (PaletteName::Monokai, "#f8f8f2", "#272822"),
+            (PaletteName::Github, "#c9d1d9", "#0d1117"),
+        ];
+        for (palette, foreground, background) in ground_truth {
+            let colors = palette.colors();
+            assert_eq!(
+                colors.foreground, foreground,
+                "{palette} foreground drifted from the official palette"
+            );
+            assert_eq!(
+                colors.background, background,
+                "{palette} background drifted from the official palette"
+            );
+        }
+    }
+
     #[test]
     fn value_colors_are_valid_hex() {
         for palette in PaletteName::all() {
