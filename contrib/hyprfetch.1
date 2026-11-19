@@ -1,4 +1,4 @@
-.TH HYPRFETCH 1 "2026-11-17" "hyprfetch 0.3.1" "User Commands"
+.TH HYPRFETCH 1 "2026-11-19" "hyprfetch 0.3.1" "User Commands"
 .SH NAME
 hyprfetch \- Hyprland-native fetch utility for system, session and rice state
 .SH SYNOPSIS
@@ -46,8 +46,18 @@ bars.
 Use the share preset, which leads with the theme and the live session
 state. It is meant for rice screenshots.
 .TP
-.B \-\-animated
-Show a spinner while the modules are collected.
+.BI \-\-animation " " \fISTYLE\fR
+How the output is revealed on a terminal:
+.B split
+grows the logo skeleton first and then lights the session rows up behind it,
+.B wave
+lights the logo cells column by column from the left edge,
+.B lines
+reveals one row after another, and
+.B static
+turns every motion off, spinner included. Defaults to
+.BR split ,
+and the finished frame is the same static output whatever the style.
 .TP
 .B \-\-watch
 Keep running and redraw the output in place. The screen is only cleared
@@ -85,12 +95,28 @@ A comma separated list of the modules to show. The options configured for
 these modules in the configuration file are kept.
 .TP
 .BI \-\-theme " " \fIPALETTE\fR
-The colour palette:
+The colour palette. Built in are
 .BR hypr ,
 .BR mono ,
-.B catppuccin
-or
-.BR dracula .
+.BR catppuccin ,
+.BR dracula ,
+.BR gruvbox ,
+.BR gruvbox\-light ,
+.BR nord ,
+.BR one\-dark ,
+.BR solarized\-dark ,
+.BR solarized\-light ,
+.BR rose\-pine ,
+.BR ayu ,
+.BR everforest ,
+.BR kanagawa ,
+.BR monokai ,
+.BR material
+and
+.BR github .
+Run
+.B hyprfetch \-\-list\-themes
+for the authoritative names.
 .TP
 .BI \-\-logo " " \fIPRESET\fR
 The logo to use. Besides the distribution logos there are
@@ -233,6 +259,14 @@ Keep the session state on screen:
 .nf
 .RS
 hyprfetch --watch --watch-interval 2
+.RE
+.fi
+.PP
+Draw the logo as a wave sweeping from the left edge:
+.PP
+.nf
+.RS
+hyprfetch --animation wave
 .RE
 .fi
 .PP
