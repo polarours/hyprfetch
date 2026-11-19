@@ -1,0 +1,753 @@
+use std::env;
+use std::fs;
+use std::path::Path;
+use std::time::Duration;
+
+use serde::Serialize;
+
+use super::ProviderError;
+use super::SystemProvider;
+use super::run_with_timeout;
+
+/// How long a wireless tool may take to answer.
+const WIFI_PROBE_TIMEOUT: Duration = Duration::from_millis(500);
+
+/// How long an audio tool may take to answer.
+const AUDIO_PROBE_TIMEOUT: Duration = Duration::from_millis(500);
+
+#[derive(Debug, Clone, Serialize)]
+pub struct NetworkInfo {
+    pub interface: String,
+    pub ip: String,
+    pub ssid: Option<String>,
+    pub signal_percent: Option<u8>,
+    pub speed_mbps: Option<u64>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AudioInfo {
+    pub backend: String,
+    pub device: Option<String>,
+    /// The volume of the default device in percent.
+    pub volume_percent: Option<u8>,
+    /// Whether the default device is muted.
+    pub muted: bool,
+}
+
+/// The default device of the audio server.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AudioDevice {
+    pub name: String,
+    /// The volume in percent.
+    pub volume_percent: Option<u8>,
+    pub muted: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct TemperatureInfo {
+    pub zone: String,
+    pub temp_celsius: f64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DatetimeInfo {
+    pub date: String,
+    pub time: String,
+    pub timezone: String,
+}
+
+fn locale_from_env() -> Option<String> {
+    ["LC_ALL", "LC_MESSAGES", "LANG"]
+        .into_iter()
+        .filter_map(|key| env::var(key).ok())
+        .find(|value| !value.trim().is_empty())
+}
+
+fn read_network_info() -> Result<NetworkInfo, ProviderError> {
+    let route_raw = fs::read_to_string("/proc/net/route").map_err(ProviderError::io)?;
+    let default_iface = parse_default_interface(&route_raw)
+        .ok_or_else(|| ProviderError::not_found("no default network interface found"))?;
+
+    let ip = read_interface_ip(&default_iface).ok_or_else(|| {
+        ProviderError::not_found(format!("no IP address found for interface {default_iface}"))
+    })?;
+
+    let (ssid, signal_percent, speed_mbps) = read_wifi_info(&default_iface);
+
+    Ok(NetworkInfo {
+        interface: default_iface,
+        ip,
+        ssid,
+        signal_percent,
+        speed_mbps,
+    })
+}
+
+fn parse_default_interface(route_raw: &str) -> Option<String> {
+    for line in route_raw.lines().skip(1) {
+        let mut fields = line.split('\t');
+        let iface = fields.next()?.trim();
+        let destination = fields.next()?.trim();
+        if destination == "00000000" {
+            return Some(iface.to_string());
+        }
+    }
+    None
+}
+
+fn read_interface_ip(iface: &str) -> Option<String> {
+    let output = std::process::Command::new("ip")
+        .args(["-4", "addr", "show", "dev", iface])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    parse_ip_addr_output(&stdout)
+}
+
+fn read_wifi_info(iface: &str) -> (Option<String>, Option<u8>, Option<u64>) {
+    let wireless_path = Path::new("/sys/class/net").join(iface).join("wireless");
+    if wireless_path.exists() {
+        let ssid = fs::read_to_string(format!("/sys/class/net/{iface}/wireless/ssid"))
+            .ok()
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty());
+
+        let signal_percent = fs::read_to_string(format!("/sys/class/net/{iface}/wireless/link"))
+            .ok()
+            .and_then(|v| v.trim().parse::<u8>().ok())
+            .filter(|&v| v > 0)
+            .map(|v| (v as f64 / 70.0 * 100.0).min(100.0) as u8);
+
+        let speed_mbps = fs::read_to_string(format!("/sys/class/net/{iface}/speed"))
+            .ok()
+            .and_then(|v| v.trim().parse::<i64>().ok())
+            .filter(|&v| v > 0)
+            .map(|v| v as u64);
+
+        if ssid.is_some() || signal_percent.is_some() {
+            return (ssid, signal_percent, speed_mbps);
+        }
+    }
+
+    // Drivers such as iwlwifi do not publish the wireless files, so ask the
+    // tools that talk to the driver directly.
+    let (ssid, signal, speed) = read_iw_link(iface);
+    if ssid.is_some() || signal.is_some() {
+        return (ssid, signal, speed);
+    }
+
+    read_iwconfig(iface)
+}
+
+/// The SSID, signal and link speed of an interface, read with `iw`.
+fn read_iw_link(iface: &str) -> (Option<String>, Option<u8>, Option<u64>) {
+    let Some(output) = run_with_timeout("iw", &["dev", iface, "link"], WIFI_PROBE_TIMEOUT) else {
+        return (None, None, None);
+    };
+    parse_iw_link(&output)
+}
+
+/// The SSID, signal and link speed in the output of `iw dev <iface> link`.
+fn parse_iw_link(output: &str) -> (Option<String>, Option<u8>, Option<u64>) {
+    let mut ssid = None;
+    let mut signal = None;
+    let mut speed = None;
+    for line in output.lines() {
+        let line = line.trim();
+        if let Some(rest) = line.strip_prefix("SSID: ") {
+            let value = rest.trim();
+            if !value.is_empty() {
+                ssid = Some(value.to_string());
+            }
+        } else if let Some(rest) = line.strip_prefix("signal: ")
+            && let Some(dbm) = rest
+                .split_whitespace()
+                .next()
+                .and_then(|v| v.parse::<i32>().ok())
+        {
+            signal = Some(dbm_to_percent(dbm));
+        } else if let Some(rest) = line.strip_prefix("tx bitrate: ") {
+            speed = parse_link_speed(rest);
+        }
+    }
+
+    (ssid, signal, speed)
+}
+
+/// The SSID, signal and link speed of an interface, read with `iwconfig`.
+fn read_iwconfig(iface: &str) -> (Option<String>, Option<u8>, Option<u64>) {
+    let Some(output) = run_with_timeout("iwconfig", &[iface], WIFI_PROBE_TIMEOUT) else {
+        return (None, None, None);
+    };
+    parse_iwconfig(&output)
+}
+
+/// The SSID, signal and link speed in the output of `iwconfig <iface>`.
+fn parse_iwconfig(output: &str) -> (Option<String>, Option<u8>, Option<u64>) {
+    let mut ssid = None;
+    let mut signal = None;
+    let mut speed = None;
+    for line in output.lines() {
+        if let Some(rest) = line.split("ESSID:").nth(1) {
+            let value = rest.trim().trim_matches('"');
+            if !value.is_empty() {
+                ssid = Some(value.to_string());
+            }
+        } else if let Some(rest) = line.split("Link Quality=").nth(1)
+            && let Some((quality, max)) = rest.split_once('/')
+            && let Some(quality) = quality.trim().parse::<u64>().ok()
+            && let Some(max) = max
+                .split_whitespace()
+                .next()
+                .and_then(|value| value.parse::<u64>().ok())
+            && max > 0
+        {
+            signal = Some((quality as f64 / max as f64 * 100.0).min(100.0) as u8);
+        } else if let Some(rest) = line.split("Bit Rate=").nth(1) {
+            speed = parse_link_speed(rest);
+        }
+    }
+
+    (ssid, signal, speed)
+}
+
+/// A signal level in dBm as a percentage.
+fn dbm_to_percent(dbm: i32) -> u8 {
+    ((dbm + 100) * 2).clamp(0, 100) as u8
+}
+
+/// A link speed such as `144.4 Mb/s` in megabits per second.
+fn parse_link_speed(text: &str) -> Option<u64> {
+    let value = text.split_whitespace().next()?;
+    value.parse::<f64>().ok().map(|value| value.round() as u64)
+}
+
+fn parse_ip_addr_output(output: &str) -> Option<String> {
+    for line in output.lines() {
+        let trimmed = line.trim();
+        if let Some(rest) = trimmed.strip_prefix("inet ") {
+            let addr = rest.split('/').next()?;
+            if !addr.is_empty() && addr != "127.0.0.1" {
+                return Some(addr.to_string());
+            }
+        }
+    }
+    None
+}
+
+fn read_datetime_info() -> Result<DatetimeInfo, ProviderError> {
+    let output = std::process::Command::new("date")
+        .args(["+%Y-%m-%d %H:%M:%S %Z"])
+        .output()
+        .map_err(ProviderError::io)?;
+
+    if !output.status.success() {
+        return Err(ProviderError::command("date command failed"));
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let line = stdout.trim().to_string();
+
+    let parts: Vec<&str> = line.splitn(3, ' ').collect();
+    if parts.len() < 2 {
+        return Err(ProviderError::parse(format!(
+            "unexpected date output: {line}"
+        )));
+    }
+
+    let date = parts[0].to_string();
+    let time = parts[1].to_string();
+    let timezone = if parts.len() > 2 {
+        parts[2].to_string()
+    } else {
+        env::var("TZ").unwrap_or_else(|_| "local".to_string())
+    };
+
+    Ok(DatetimeInfo {
+        date,
+        time,
+        timezone,
+    })
+}
+
+/// The chips that measure the temperature of the processor.
+const CPU_CHIPS: &[&str] = &["coretemp", "k10temp", "zenpower"];
+
+/// The sensors of a chip that hold the temperature of the processor.
+const CPU_SENSORS: &[&str] = &["package id 0", "tctl", "tdie"];
+
+/// The thermal zones that hold the temperature of the processor.
+const CPU_ZONES: &[&str] = &["x86_pkg_temp", "tcpu", "cpu-thermal", "tdie"];
+
+fn read_temperature_info() -> Result<TemperatureInfo, ProviderError> {
+    // The processor reports its temperature through a chip of its own, which
+    // is the one a fetch wants to show. The other sensors of a machine are
+    // named after the part they belong to, which says little.
+    if let Some(info) = read_processor_temperature() {
+        return Ok(info);
+    }
+
+    read_hottest_thermal_zone()
+}
+
+/// The temperature of the processor, read from the chips of the kernel.
+fn read_processor_temperature() -> Option<TemperatureInfo> {
+    read_processor_temperature_from(Path::new("/sys/class/hwmon"))
+}
+
+fn read_processor_temperature_from(root: &Path) -> Option<TemperatureInfo> {
+    let entries = fs::read_dir(root).ok()?;
+    let mut fallback = None;
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let Ok(chip) = fs::read_to_string(path.join("name")) else {
+            continue;
+        };
+        let chip = chip.trim().to_ascii_lowercase();
+        if !CPU_CHIPS.contains(&chip.as_str()) {
+            continue;
+        }
+
+        // sysfs has no glob expansion: read_dir("temp*_input") looks for a
+        // literal directory that never exists. Enumerate the chip directory
+        // and filter the sensor files by name instead.
+        let Ok(sensors) = fs::read_dir(&path) else {
+            continue;
+        };
+        for sensor in sensors.flatten() {
+            let file_name = sensor.file_name();
+            let name = file_name.to_string_lossy();
+            if !name.starts_with("temp") || !name.ends_with("_input") {
+                continue;
+            }
+            let Some(raw) = read_temperature_value(&sensor.path()) else {
+                continue;
+            };
+
+            let label = fs::read_to_string(
+                sensor
+                    .path()
+                    .with_file_name(name.replace("_input", "_label")),
+            )
+            .map(|label| label.trim().to_ascii_lowercase())
+            .unwrap_or_default();
+
+            if CPU_SENSORS.contains(&label.as_str()) {
+                return Some(TemperatureInfo {
+                    zone: "CPU".to_string(),
+                    temp_celsius: raw,
+                });
+            }
+            fallback.get_or_insert(TemperatureInfo {
+                zone: "CPU".to_string(),
+                temp_celsius: raw,
+            });
+        }
+    }
+
+    fallback
+}
+
+/// The temperature of a sensor, in degrees.
+fn read_temperature_value(path: &Path) -> Option<f64> {
+    let raw = fs::read_to_string(path).ok()?;
+    let raw = raw.trim().parse::<i64>().ok()?;
+    Some(raw as f64 / 1000.0)
+}
+
+/// The hottest thermal zone of the machine.
+fn read_hottest_thermal_zone() -> Result<TemperatureInfo, ProviderError> {
+    let thermal_dir = Path::new("/sys/class/thermal");
+    if !thermal_dir.exists() {
+        return Err(ProviderError::not_found("/sys/class/thermal not available"));
+    }
+
+    let entries = fs::read_dir(thermal_dir).map_err(ProviderError::io)?;
+    let mut zones: Vec<(String, f64)> = Vec::new();
+
+    for entry in entries {
+        let entry = entry.map_err(ProviderError::io)?;
+        let name = entry.file_name().to_string_lossy().to_string();
+        if !name.starts_with("thermal_zone") {
+            continue;
+        }
+
+        let type_path = entry.path().join("type");
+        let temp_path = entry.path().join("temp");
+
+        let zone_type = fs::read_to_string(&type_path)
+            .map(|v| v.trim().to_string())
+            .unwrap_or_else(|_| name.clone());
+
+        if let Ok(raw) = fs::read_to_string(&temp_path) {
+            if let Ok(millidegrees) = raw.trim().parse::<i64>() {
+                zones.push((zone_type, millidegrees as f64 / 1000.0));
+            }
+        }
+    }
+
+    if zones.is_empty() {
+        return Err(ProviderError::not_found("no thermal zones found"));
+    }
+
+    // A zone of the processor is better than the hottest zone of the board.
+    if let Some((_, temp)) = zones
+        .iter()
+        .find(|(zone, _)| CPU_ZONES.contains(&zone.to_ascii_lowercase().as_str()))
+    {
+        return Ok(TemperatureInfo {
+            zone: "CPU".to_string(),
+            temp_celsius: *temp,
+        });
+    }
+
+    zones.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+    let (zone, temp) = zones.into_iter().next().unwrap();
+
+    Ok(TemperatureInfo {
+        zone,
+        temp_celsius: temp,
+    })
+}
+
+fn detect_pipewire_default_sink() -> Option<AudioDevice> {
+    let output = run_with_timeout("wpctl", &["status"], AUDIO_PROBE_TIMEOUT)?;
+    parse_wpctl_default_sink(&output)
+}
+
+/// The default sink in the output of `wpctl status`.
+///
+/// The sinks are listed under a "Sinks:" heading and the default one is
+/// marked with a star. Its line also holds the volume and the mute state.
+fn parse_wpctl_default_sink(output: &str) -> Option<AudioDevice> {
+    let mut in_sinks = false;
+    for line in output.lines() {
+        let trimmed = line.trim();
+        if trimmed.ends_with("Sinks:") {
+            in_sinks = true;
+            continue;
+        }
+        if !in_sinks {
+            continue;
+        }
+        if trimmed.ends_with(':') {
+            // the next section starts
+            break;
+        }
+
+        let Some(rest) = trimmed.split_once('*').map(|(_, rest)| rest.trim_start()) else {
+            continue;
+        };
+        // the line starts with the index of the sink, for example "52. "
+        let rest = match rest.split_once(". ") {
+            Some((index, rest)) if index.chars().all(|character| character.is_ascii_digit()) => {
+                rest
+            }
+            _ => rest,
+        };
+        // the volume and the mute state are in brackets behind the name
+        let (name, state) = match rest.split_once('[') {
+            Some((name, state)) => (name.trim(), state),
+            None => (rest.trim(), ""),
+        };
+        if !name.is_empty() {
+            let (volume_percent, muted) = parse_wpctl_sink_state(state);
+            return Some(AudioDevice {
+                name: name.to_string(),
+                volume_percent,
+                muted,
+            });
+        }
+    }
+    None
+}
+
+/// The volume and the mute state behind a sink in `wpctl status`.
+///
+/// The state looks like "vol: 0.70" and turns into "vol: 1.00 MUTED" when
+/// the sink is muted.
+fn parse_wpctl_sink_state(state: &str) -> (Option<u8>, bool) {
+    let state = state.trim().trim_end_matches(']');
+    let muted = state.contains("MUTED");
+    let volume = state
+        .split_once(':')
+        .map(|(_, value)| value.trim())
+        .and_then(|value| value.split_whitespace().next())
+        .and_then(|value| value.parse::<f64>().ok())
+        .map(|value| ((value * 100.0).round() as i32).clamp(0, 255) as u8);
+
+    (volume, muted)
+}
+
+fn read_audio_info() -> Result<AudioInfo, ProviderError> {
+    let runtime_dir = env::var_os("XDG_RUNTIME_DIR")
+        .map(|v| v.to_string_lossy().to_string())
+        .unwrap_or_default();
+    let pulse_sock = Path::new(&runtime_dir).join("pulse/native");
+    let pipewire_sock = Path::new(&runtime_dir).join("pipewire-0");
+
+    if pipewire_sock.exists() {
+        let device = detect_pipewire_default_sink();
+        return Ok(AudioInfo {
+            backend: "PipeWire".to_string(),
+            device: device.as_ref().map(|device| device.name.clone()),
+            volume_percent: device.as_ref().and_then(|device| device.volume_percent),
+            muted: device.as_ref().is_some_and(|device| device.muted),
+        });
+    }
+
+    if pulse_sock.exists() {
+        let device = detect_pulse_default_sink();
+        return Ok(AudioInfo {
+            backend: "PulseAudio".to_string(),
+            device: device.as_ref().map(|device| device.name.clone()),
+            volume_percent: device.as_ref().and_then(|device| device.volume_percent),
+            muted: device.as_ref().is_some_and(|device| device.muted),
+        });
+    }
+
+    Err(ProviderError::not_found(
+        "no audio backend detected (neither PipeWire nor PulseAudio socket found)",
+    ))
+}
+
+fn detect_pulse_default_sink() -> Option<AudioDevice> {
+    let output = run_with_timeout("pactl", &["info"], AUDIO_PROBE_TIMEOUT)?;
+    let mut device = parse_pulse_default_sink(&output)?;
+
+    // `pactl info` names the default sink but does not report its volume or
+    // mute state. Those live in dedicated queries against @DEFAULT_SINK@.
+    if let Some(volume) = run_with_timeout(
+        "pactl",
+        &["get-sink-volume", "@DEFAULT_SINK@"],
+        AUDIO_PROBE_TIMEOUT,
+    ) {
+        device.volume_percent = parse_pactl_sink_volume(&volume);
+    }
+    if let Some(mute) = run_with_timeout(
+        "pactl",
+        &["get-sink-mute", "@DEFAULT_SINK@"],
+        AUDIO_PROBE_TIMEOUT,
+    ) {
+        device.muted = parse_pactl_sink_mute(&mute);
+    }
+    Some(device)
+}
+
+/// The default sink named in the output of `pactl info`.
+fn parse_pulse_default_sink(output: &str) -> Option<AudioDevice> {
+    let name = output
+        .lines()
+        .find_map(|line| line.strip_prefix("Default Sink: "))
+        .map(str::trim)
+        .filter(|name| !name.is_empty())?;
+
+    Some(AudioDevice {
+        name: name.to_string(),
+        volume_percent: None,
+        muted: false,
+    })
+}
+
+/// The first percentage in the output of `pactl get-sink-volume`.
+fn parse_pactl_sink_volume(output: &str) -> Option<u8> {
+    output
+        .split_whitespace()
+        .find_map(|token| token.strip_suffix('%'))
+        .and_then(|value| value.parse::<u8>().ok())
+}
+
+/// The state in the output of `pactl get-sink-mute`.
+fn parse_pactl_sink_mute(output: &str) -> bool {
+    output
+        .lines()
+        .find_map(|line| line.strip_prefix("Mute: "))
+        .is_some_and(|state| state.trim().eq_ignore_ascii_case("yes"))
+}
+
+impl SystemProvider {
+    pub fn locale(&self) -> Option<String> {
+        locale_from_env()
+    }
+
+    pub fn network_info(&self) -> Result<NetworkInfo, ProviderError> {
+        read_network_info()
+    }
+
+    pub fn audio_info(&self) -> Result<AudioInfo, ProviderError> {
+        read_audio_info()
+    }
+
+    pub fn temperature_info(&self) -> Result<TemperatureInfo, ProviderError> {
+        read_temperature_info()
+    }
+
+    pub fn datetime_info(&self) -> Result<DatetimeInfo, ProviderError> {
+        read_datetime_info()
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reads_cpu_temperature_from_hwmon_temp_input_files() {
+        // sysfs exposes sensors as files named temp1_input, temp2_input, ...
+        // inside the chip directory. read_dir does NOT expand a "temp*_input"
+        // glob, so the old code never found them and always fell back to a
+        // board sensor.
+        let root = tempfile::tempdir().unwrap();
+        let chip = root.path().join("hwmon0");
+        fs::create_dir(&chip).unwrap();
+        fs::write(chip.join("name"), "coretemp\n").unwrap();
+        fs::write(chip.join("temp1_input"), "52000\n").unwrap();
+        fs::write(chip.join("temp1_label"), "Package id 0\n").unwrap();
+
+        let info = read_processor_temperature_from(root.path()).unwrap();
+        assert_eq!(info.zone, "CPU");
+        assert!((info.temp_celsius - 52.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn parses_default_interface_from_route() {
+        let raw = "Iface\tDestination\tGateway\tFlags\tRefCnt\tUse\tMetric\tMask\t\tMTU\tWindow\tIRTT\nwlan0\t00000000\t010A14AC\t0003\t0\t0\t600\t00000000\t0\t0\t0\neth0\t000011AC\t00000000\t0001\t0\t0\t0\t0000FFFF\t0\t0\t0\n";
+        assert_eq!(parse_default_interface(raw).as_deref(), Some("wlan0"));
+    }
+
+    #[test]
+    fn parses_ip_addr_output() {
+        let output = "2: wlan0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP group default qlen 1000\n    inet 172.20.10.2/28 brd 172.20.10.15 scope global dynamic wlan0\n       valid_lft 84513sec preferred_lft 84513sec\n";
+        assert_eq!(parse_ip_addr_output(output).as_deref(), Some("172.20.10.2"));
+    }
+
+    #[test]
+    fn parses_ip_addr_skips_loopback() {
+        let output = "1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default\n    inet 127.0.0.1/8 scope host lo\n2: wlan0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500\n    inet 192.168.1.100/24 brd 192.168.1.255 scope global wlan0\n";
+        assert_eq!(
+            parse_ip_addr_output(output).as_deref(),
+            Some("192.168.1.100")
+        );
+    }
+
+    #[test]
+    fn parses_ip_addr_returns_none_on_empty() {
+        assert_eq!(parse_ip_addr_output(""), None);
+        assert_eq!(parse_ip_addr_output("no interfaces found"), None);
+    }
+
+    #[test]
+    fn reads_the_wifi_details_from_iw() {
+        let output = "Connected to 16:74:9c:41:f2:2b (on wlan0)\n\tSSID: UPC\n\tfreq: 5765.00 MHz\n\tsignal: -46 dBm\n\ttx bitrate: 144.4 MBit/s\n";
+        let (ssid, signal, speed) = parse_iw_link(output);
+
+        assert_eq!(ssid.as_deref(), Some("UPC"));
+        assert_eq!(signal, Some(100));
+        assert_eq!(speed, Some(144));
+    }
+
+    #[test]
+    fn reads_the_wifi_details_from_iwconfig() {
+        let output = "wlan0     IEEE 802.11  ESSID:\"UPC\"  \n          Mode:Managed  Frequency:5.765 GHz  \n          Bit Rate=144.4 Mb/s   Tx-Power=20 dBm   \n          Link Quality=64/70  Signal level=-46 dBm  \n";
+        let (ssid, signal, speed) = parse_iwconfig(output);
+
+        assert_eq!(ssid.as_deref(), Some("UPC"));
+        assert_eq!(signal, Some(91));
+        assert_eq!(speed, Some(144));
+    }
+
+    #[test]
+    fn ignores_a_wireless_tool_that_reports_nothing() {
+        assert_eq!(parse_iw_link(""), (None, None, None));
+        assert_eq!(parse_iwconfig(""), (None, None, None));
+    }
+
+    #[test]
+    fn turns_a_signal_level_into_a_percentage() {
+        assert_eq!(dbm_to_percent(-46), 100);
+        assert_eq!(dbm_to_percent(-70), 60);
+        assert_eq!(dbm_to_percent(-100), 0);
+    }
+
+    #[test]
+    fn reads_a_link_speed() {
+        assert_eq!(parse_link_speed("144.4 Mb/s"), Some(144));
+        assert_eq!(parse_link_speed("1.0 Mb/s"), Some(1));
+        assert_eq!(parse_link_speed("not a speed"), None);
+    }
+
+    #[test]
+    fn reads_the_default_sink_from_wpctl() {
+        let output = "PipeWire 'pipewire-0' [1.6.9]\n \u{251c}\u{2500} Clients:\n        32. WirePlumber   [1.6.9]\n\nAudio\n \u{251c}\u{2500} Devices:\n \u{2502}      44. AD107 High Definition Audio Controller [alsa]\n \u{2502}  \n \u{251c}\u{2500} Sinks:\n \u{2502}  *   52. Built-in Audio Analog Stereo        [vol: 0.35]\n \u{2502}  \n \u{251c}\u{2500} Sources:\n \u{2502}  *   53. Built-in Audio Analog Stereo        [vol: 0.39]\n";
+        assert_eq!(
+            parse_wpctl_default_sink(output),
+            Some(AudioDevice {
+                name: "Built-in Audio Analog Stereo".to_string(),
+                volume_percent: Some(35),
+                muted: false,
+            })
+        );
+    }
+
+    #[test]
+    fn keeps_a_device_name_that_contains_a_dot() {
+        let output = " \u{251c}\u{2500} Sinks:\n \u{2502}  *   52. HDA Intel PCH. Analog Stereo   [vol: 0.35]\n";
+        assert_eq!(
+            parse_wpctl_default_sink(output),
+            Some(AudioDevice {
+                name: "HDA Intel PCH. Analog Stereo".to_string(),
+                volume_percent: Some(35),
+                muted: false,
+            })
+        );
+    }
+
+    #[test]
+    fn reads_the_mute_state_of_a_sink() {
+        let output = " \u{251c}\u{2500} Sinks:\n \u{2502}  *   52. Built-in Audio Analog Stereo        [vol: 1.00 MUTED]\n";
+        assert_eq!(
+            parse_wpctl_default_sink(output),
+            Some(AudioDevice {
+                name: "Built-in Audio Analog Stereo".to_string(),
+                volume_percent: Some(100),
+                muted: true,
+            })
+        );
+    }
+
+    #[test]
+    fn reads_the_default_sink_from_pactl_info() {
+        // Real `pactl info` reports only the sink name. Volume and mute come
+        // from separate commands, not from this output.
+        let output = "Default Sink: alsa_output.pci-0000_00_1f.3.analog-stereo\nDefault Source: alsa_input.pci-0000_00_1f.3.analog-stereo\n";
+        assert_eq!(
+            parse_pulse_default_sink(output),
+            Some(AudioDevice {
+                name: "alsa_output.pci-0000_00_1f.3.analog-stereo".to_string(),
+                volume_percent: None,
+                muted: false,
+            })
+        );
+    }
+
+    #[test]
+    fn parses_the_volume_and_mute_from_pactl_queries() {
+        let volume =
+            "Volume: Front Left: 16384 25% [-30.00 dB] Front Right: 16384 25% [-30.00 dB]\n";
+        assert_eq!(parse_pactl_sink_volume(volume), Some(25));
+        assert!(parse_pactl_sink_mute("Mute: yes\n"));
+        assert!(!parse_pactl_sink_mute("Mute: no\n"));
+    }
+
+    #[test]
+    fn has_no_sink_when_wpctl_lists_none() {
+        assert_eq!(parse_wpctl_default_sink(""), None);
+        assert_eq!(
+            parse_wpctl_default_sink(" \u{251c}\u{2500} Sinks:\n \u{2502}  \n"),
+            None
+        );
+    }
+}
