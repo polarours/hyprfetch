@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Performance
 
-- Startup is now ~80 ms in release mode (down from ~2.3 s), close to fastfetch's
+- Startup is now ~50 ms in release mode (down from ~2.3 s), close to fastfetch's
   range while keeping the live Hyprland state that fastfetch does not collect.
   The remaining big wins:
   - The command helper's reader threads now stop when the child exits instead of
@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `--version` probes are opt-in: the default compact output and normal JSON
     render skip them; they run only for `versions=true` and full JSON, where the
     version is actually shown. Probing cost ~100 ms on a normal desktop.
+  - The CPU usage module runs last so its 50 ms `/proc/stat` sampling window
+    overlaps the other modules' work (hyprctl, GPU, audio, network) instead of
+    adding its own sleep. Output order is unchanged and the sample remains a
+    real 50 ms window; this alone cut startup from ~80 ms to ~50 ms.
 
 - The "Collecting system information" spinner waits 500 ms before drawing, so it
   never flashes in a healthy run; it only appears when a probe or plugin stalls.

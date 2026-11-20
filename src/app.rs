@@ -73,14 +73,30 @@ impl App {
                 providers: &providers,
             };
 
+            // The CPU usage module needs a real sampling window between two
+            // /proc/stat reads. Run it last so it reuses the time spent on the
+            // other modules (hyprctl, GPU, audio, network) instead of adding
+            // its own sleep. Its output is put back in config order afterwards.
+            let cpu_index = runtime
+                .modules
+                .iter()
+                .position(|m| m.name == crate::model::ModuleId::Cpu);
             let mut outputs = runtime
                 .modules
                 .iter()
-                .map(|module_config| {
+                .enumerate()
+                .filter(|(i, _)| Some(*i) != cpu_index)
+                .map(|(_, module_config)| {
                     let output = build_module(module_config.name).run(&context, module_config);
                     apply_module_display_options(output, module_config)
                 })
                 .collect::<Vec<_>>();
+            if let Some(index) = cpu_index {
+                let cpu_output = build_module(crate::model::ModuleId::Cpu)
+                    .run(&context, &runtime.modules[index]);
+                let cpu_output = apply_module_display_options(cpu_output, &runtime.modules[index]);
+                outputs.insert(index, cpu_output);
+            }
             outputs.extend(runtime.plugins.iter().map(run_plugin));
             outputs
         };
