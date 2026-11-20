@@ -1,6 +1,7 @@
 use std::io::{self, Read};
 use std::process::Child;
-use std::sync::mpsc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, mpsc};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -135,12 +136,12 @@ pub enum CommandWait {
 /// deadline, so a background descendant holding the pipe hung the caller.
 /// Reader threads drain both pipes continuously, and the final read is capped
 /// by a short grace period once the child exits.
-// Grace period for the reader threads after a child exits. The child is
-// gone, so anything it wrote is already in the pipes; this only gives the
-// readers a moment to hand over their buffered chunks. Waiting for EOF here
-// would hang on a background descendant that inherited the pipe, and waiting
-// for the full deadline would stall every such command for the whole timeout.
-const DRAIN_GRACE: Duration = Duration::from_millis(100);
+// A background descendant can inherit a command's pipes and keep them open
+// after the command exits, so a reader blocked on `read()` never sees EOF.
+// Once the child is gone, the reader threads are told to stop and the output
+// already buffered in the channel is drained; this keeps the wait bounded
+// without a fixed sleep that would add latency to every command.
+const DRAIN_POLL_MS: u64 = 2;
 
 pub fn wait_with_deadline(mut child: Child, timeout: Duration) -> io::Result<CommandWait> {
     let stdout = child.stdout.take();
@@ -150,11 +151,16 @@ pub fn wait_with_deadline(mut child: Child, timeout: Duration) -> io::Result<Com
 
     // Stream chunks instead of read_to_end: a descendant that inherited the
     // pipe may keep it open forever, so waiting for EOF would lose all data.
+    // The stop flag lets us end the readers once the child exits, even when a
+    // descendant still holds the pipe open.
+    let stop = Arc::new(AtomicBool::new(false));
     if let Some(pipe) = stdout {
-        thread::spawn(move || drain_pipe(pipe, tx_out));
+        let stop = Arc::clone(&stop);
+        thread::spawn(move || drain_pipe(pipe, tx_out, stop));
     }
     if let Some(pipe) = stderr {
-        thread::spawn(move || drain_pipe(pipe, tx_err));
+        let stop = Arc::clone(&stop);
+        thread::spawn(move || drain_pipe(pipe, tx_err, stop));
     }
 
     let started = Instant::now();
@@ -170,15 +176,12 @@ pub fn wait_with_deadline(mut child: Child, timeout: Duration) -> io::Result<Com
         thread::sleep(Duration::from_millis(10));
     };
 
-    // The child has exited, so all output it produced is already in the
-    // pipes. Drain it with a short grace period instead of the full timeout:
-    // a background descendant that inherited the pipe never closes it, and
-    // waiting until the original deadline stalled every such command (e.g.
-    // nvidia-smi) for its whole budget. A reader that reached EOF drops its
-    // sender immediately, so ordinary commands return in microseconds.
-    let drain_deadline = Instant::now() + DRAIN_GRACE;
-    let stdout = collect_until(rx_out, drain_deadline);
-    let stderr = collect_until(rx_err, drain_deadline);
+    // The child has exited: tell the readers to stop and drain the chunks
+    // they already delivered. No waiting for EOF or for the full timeout —
+    // a background descendant that inherited the pipe would hold both open.
+    stop.store(true, Ordering::Relaxed);
+    let stdout = collect_stopped(rx_out);
+    let stderr = collect_stopped(rx_err);
     Ok(CommandWait::Finished(FinishedCommand {
         status,
         stdout,
@@ -186,9 +189,14 @@ pub fn wait_with_deadline(mut child: Child, timeout: Duration) -> io::Result<Com
     }))
 }
 
-fn drain_pipe(mut pipe: impl Read, tx: mpsc::Sender<Vec<u8>>) {
+fn drain_pipe(mut pipe: impl Read, tx: mpsc::Sender<Vec<u8>>, stop: Arc<AtomicBool>) {
     let mut buffer = [0u8; 8192];
     loop {
+        // A pipe held open by a descendant cannot be read to EOF, so poll the
+        // stop signal between reads and finish when the child has exited.
+        if stop.load(Ordering::Relaxed) {
+            break;
+        }
         match pipe.read(&mut buffer) {
             Ok(0) | Err(_) => break,
             Ok(count) => {
@@ -200,17 +208,20 @@ fn drain_pipe(mut pipe: impl Read, tx: mpsc::Sender<Vec<u8>>) {
     }
 }
 
-fn collect_until(rx: mpsc::Receiver<Vec<u8>>, deadline: Instant) -> Vec<u8> {
+fn collect_stopped(rx: mpsc::Receiver<Vec<u8>>) -> Vec<u8> {
     let mut output = Vec::new();
-    loop {
-        let remaining = deadline.saturating_duration_since(Instant::now());
-        if remaining.is_zero() {
-            break;
-        }
-        match rx.recv_timeout(remaining) {
+    // Give the reader threads a couple of milliseconds to hand over the last
+    // buffered chunk, then stop: they exit on the stop signal above.
+    let deadline = Instant::now() + Duration::from_millis(DRAIN_POLL_MS);
+    while Instant::now() < deadline {
+        match rx.recv_timeout(deadline.saturating_duration_since(Instant::now())) {
             Ok(chunk) => output.extend_from_slice(&chunk),
             Err(_) => break,
         }
+    }
+    // Channels close when the readers exit; take anything already queued.
+    while let Ok(chunk) = rx.try_recv() {
+        output.extend_from_slice(&chunk);
     }
     output
 }

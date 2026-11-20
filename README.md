@@ -365,7 +365,7 @@ name = "wallpaper"
 [[modules]]
 name = "hypr-ecosystem"
 compact = true
-# versions = true   # show detected daemon versions (off by default for a short row)
+# versions = true   # probe and show daemon versions (off by default: skips ~100ms of --version commands)
 
 [[plugins]]
 name = "battery"

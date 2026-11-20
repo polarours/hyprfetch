@@ -9,14 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Performance
 
-- `hyprfetch` now starts showing output in about 0.4 s instead of ~2.3 s. The shared
-  command helper waited for the full timeout when a driver (notably `nvidia-smi`)
-  left a background process holding its output pipe; it now drains buffered output
-  with a short grace period once the command exits, without waiting for EOF or
-  burning the whole timeout. Network, audio and media probes benefit as well.
-- The "Collecting system information" spinner no longer flashes in a normal run:
-  it waits 500 ms before drawing, so it only appears when a probe or plugin
-  genuinely stalls.
+- Startup is now ~80 ms in release mode (down from ~2.3 s), close to fastfetch's
+  range while keeping the live Hyprland state that fastfetch does not collect.
+  The remaining big wins:
+  - The command helper's reader threads now stop when the child exits instead of
+    waiting a fixed grace period for a pipe held open by a background descendant
+    (each such command used to add 100 ms; a run has several).
+  - The Hyprland ecosystem is detected once and cached; several modules asked for
+    it separately and each paid for a full process scan plus version probes.
+  - `--version` probes are opt-in: the default compact output and normal JSON
+    render skip them; they run only for `versions=true` and full JSON, where the
+    version is actually shown. Probing cost ~100 ms on a normal desktop.
+
+- The "Collecting system information" spinner waits 500 ms before drawing, so it
+  never flashes in a healthy run; it only appears when a probe or plugin stalls.
 
 ### Fixed
 

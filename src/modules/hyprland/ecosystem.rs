@@ -13,7 +13,16 @@ impl Module for HyprEcosystemModule {
     }
 
     fn run(&self, ctx: &ModuleContext<'_>, config: &ModuleConfig) -> ModuleOutput {
-        match ctx.providers.theme.ecosystem_info() {
+        // Versions cost a command per backend (~100 ms). Only pay for them
+        // when they are actually visible: explicit `versions=true` or JSON,
+        // whose data must stay complete.
+        let want_versions = config.option_bool("versions", false) || ctx.runtime.json;
+        let ecosystem = if want_versions {
+            ctx.providers.theme.ecosystem_info_detailed()
+        } else {
+            ctx.providers.theme.ecosystem_info()
+        };
+        match ecosystem {
             Ok(ecosystem) => {
                 let include_wallpaper = !ctx
                     .runtime
@@ -30,7 +39,7 @@ impl Module for HyprEcosystemModule {
 
                 let compact = config.option_bool("compact", true);
                 if compact {
-                    let show_versions = config.option_bool("versions", false);
+                    let show_versions = want_versions;
                     // A compact summary stays short: a few backends, no versions
                     // unless asked, so one row never dominates the screenshot.
                     let summary = summarize_ecosystem(&ecosystem, show_versions, 4);

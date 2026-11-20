@@ -3,7 +3,6 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
-use std::sync::mpsc;
 use std::time::Duration;
 
 use serde::Serialize;
@@ -130,6 +129,13 @@ impl EcosystemInfo {
 #[derive(Debug, Clone, Default)]
 pub struct ThemeProvider {
     processes: OnceLock<Result<Vec<Process>, ProviderError>>,
+    /// Detection spawns several `--version` probes; several modules ask for
+    /// the ecosystem in one run, so it is computed at most once.
+    ecosystem: OnceLock<EcosystemInfo>,
+    /// Versions are only needed by explicit requests (`versions=true`, JSON).
+    /// Probing every backend's `--version` costs ~100 ms on a normal desktop,
+    /// so the default path skips it entirely.
+    ecosystem_versions: OnceLock<EcosystemInfo>,
 }
 
 impl ThemeProvider {
@@ -158,9 +164,40 @@ impl ThemeProvider {
             .ok_or_else(|| ProviderError::not_found("no known wallpaper backend detected"))
     }
 
+    /// Backend names only. Version probing spawns a command per backend and
+    /// costs ~100 ms; the default rendering never shows versions, so it does
+    /// not pay for them.
     pub fn ecosystem_info(&self) -> Result<EcosystemInfo, ProviderError> {
-        let processes = self.processes.get_or_init(read_processes).clone()?;
-        let ecosystem = detect_ecosystem_info(&processes);
+        let ecosystem = self
+            .ecosystem
+            .get_or_init(|| {
+                let processes = self.processes.get_or_init(read_processes).clone();
+                match processes {
+                    Ok(processes) => detect_ecosystem_info(&processes, false),
+                    Err(_) => EcosystemInfo::default(),
+                }
+            })
+            .clone();
+        if ecosystem.is_empty() {
+            return Err(ProviderError::not_found(
+                "no known Hyprland ecosystem tools detected",
+            ));
+        }
+        Ok(ecosystem)
+    }
+
+    /// Full information including probed versions, for explicit requests.
+    pub fn ecosystem_info_detailed(&self) -> Result<EcosystemInfo, ProviderError> {
+        let ecosystem = self
+            .ecosystem_versions
+            .get_or_init(|| {
+                let processes = self.processes.get_or_init(read_processes).clone();
+                match processes {
+                    Ok(processes) => detect_ecosystem_info(&processes, true),
+                    Err(_) => EcosystemInfo::default(),
+                }
+            })
+            .clone();
         if ecosystem.is_empty() {
             return Err(ProviderError::not_found(
                 "no known Hyprland ecosystem tools detected",
@@ -545,7 +582,7 @@ fn pick_backend(backends: &[Backend], processes: &[Process]) -> Option<Detected>
     None
 }
 
-fn detect_ecosystem_info(processes: &[Process]) -> EcosystemInfo {
+fn detect_ecosystem_info(processes: &[Process], with_versions: bool) -> EcosystemInfo {
     let wallpaper = pick_backend(WALLPAPER_BACKENDS, processes);
     let bar = pick_backend(BAR_BACKENDS, processes);
     let launcher = pick_backend(LAUNCHER_BACKENDS, processes);
@@ -591,7 +628,11 @@ fn detect_ecosystem_info(processes: &[Process]) -> EcosystemInfo {
         &power,
         &automount,
     ];
-    let versions = probe_versions(&picks);
+    let versions = if with_versions {
+        probe_versions(&picks)
+    } else {
+        HashMap::new()
+    };
 
     EcosystemInfo {
         wallpaper: ecosystem_entry(wallpaper, &versions),
@@ -682,36 +723,28 @@ fn ecosystem_entry(
 }
 
 fn detect_version_with_timeout(command: &str, name: &str, timeout: Duration) -> Option<String> {
-    let command = command.to_string();
-    let name = name.to_string();
-    with_timeout(timeout, move || detect_version(&command, &name)).flatten()
+    // The shared helper bounds both the process and its pipes, so a backend
+    // that ignores `--version` (or leaves a descendant holding the pipe)
+    // cannot hang the run. No extra thread per probe is needed.
+    let output = crate::providers::system::run_with_timeout(command, &["--version"], timeout)?;
+    parse_version(&output, name)
 }
 
 /// Run `work` on its own thread and give up on it after `timeout`.
 ///
 /// The work outlives the timeout on purpose: a backend that ignores
-/// `--version` must not be able to hang the whole run.
+/// `--version` must not be able to hang the whole run. Kept for generic
+/// calls that cannot use the command helper.
+#[cfg(test)]
 fn with_timeout<T: Send + 'static>(
     timeout: Duration,
     work: impl FnOnce() -> T + Send + 'static,
 ) -> Option<T> {
-    let (sender, receiver) = mpsc::channel();
+    let (sender, receiver) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
         let _ = sender.send(work());
     });
-
     receiver.recv_timeout(timeout).ok()
-}
-
-fn detect_version(command: &str, name: &str) -> Option<String> {
-    let output = std::process::Command::new(command)
-        .args(["--version"])
-        .output()
-        .ok()?;
-    if !output.status.success() {
-        return None;
-    }
-    parse_version(&String::from_utf8_lossy(&output.stdout), name)
 }
 
 /// The version inside a `--version` output.
@@ -869,7 +902,7 @@ gtk-font-name=Noto Sans,  10
             process("hyprlock"),
         ];
 
-        let ecosystem = detect_ecosystem_info(&processes);
+        let ecosystem = detect_ecosystem_info(&processes, true);
         assert_eq!(
             ecosystem.wallpaper.as_ref().map(|(l, _)| l.as_str()),
             Some("hyprpaper")
@@ -915,7 +948,7 @@ gtk-font-name=Noto Sans,  10
             process("udisksd"),
         ];
 
-        let ecosystem = detect_ecosystem_info(&processes);
+        let ecosystem = detect_ecosystem_info(&processes, true);
         assert_eq!(
             ecosystem.network.as_ref().map(|(l, _)| l.as_str()),
             Some("NetworkManager"),
@@ -957,7 +990,7 @@ gtk-font-name=Noto Sans,  10
         // read_processes lowercases comm, and a root daemon such as
         // NetworkManager offers no readable executable path, so the name
         // comparison cannot rely on the case of the backend table.
-        let ecosystem = detect_ecosystem_info(&[process("networkmanager")]);
+        let ecosystem = detect_ecosystem_info(&[process("networkmanager")], true);
         assert_eq!(
             ecosystem.network.as_ref().map(|(label, _)| label.as_str()),
             Some("NetworkManager")
@@ -967,7 +1000,7 @@ gtk-font-name=Noto Sans,  10
     #[test]
     fn network_detection_falls_back_to_truncated_names() {
         // iwd is matched through the comm name when systemd-networkd is absent.
-        let ecosystem = detect_ecosystem_info(&[process("iwd")]);
+        let ecosystem = detect_ecosystem_info(&[process("iwd")], true);
         assert_eq!(
             ecosystem.network.as_ref().map(|(l, _)| l.as_str()),
             Some("iwd")
@@ -983,7 +1016,7 @@ gtk-font-name=Noto Sans,  10
             ("ly", "ly"),
             ("greetd", "greetd"),
         ] {
-            let ecosystem = detect_ecosystem_info(&[process(comm)]);
+            let ecosystem = detect_ecosystem_info(&[process(comm)], true);
             assert_eq!(
                 ecosystem.greeter.as_ref().map(|(l, _)| l.as_str()),
                 Some(label),
@@ -1000,7 +1033,7 @@ gtk-font-name=Noto Sans,  10
             process("stalonetray"),
         ];
 
-        let ecosystem = detect_ecosystem_info(&processes);
+        let ecosystem = detect_ecosystem_info(&processes, true);
         assert_eq!(
             ecosystem.portal.as_ref().map(|(label, _)| label.as_str()),
             Some("portal")
@@ -1019,7 +1052,7 @@ gtk-font-name=Noto Sans,  10
     fn passive_backends_are_not_started_for_their_version() {
         let processes = vec![process("xdg-desktop-portal-hypr")];
 
-        let ecosystem = detect_ecosystem_info(&processes);
+        let ecosystem = detect_ecosystem_info(&processes, true);
         let (_, version) = ecosystem.portal.expect("portal detected");
         assert_eq!(version, None);
     }
@@ -1047,7 +1080,7 @@ gtk-font-name=Noto Sans,  10
     fn matches_a_process_name_the_kernel_truncated() {
         let processes = vec![process("xdg-desktop-por")];
 
-        let ecosystem = detect_ecosystem_info(&processes);
+        let ecosystem = detect_ecosystem_info(&processes, true);
         assert_eq!(
             ecosystem.portal.as_ref().map(|(label, _)| label.as_str()),
             Some("portal")
@@ -1058,7 +1091,7 @@ gtk-font-name=Noto Sans,  10
     fn does_not_match_a_process_name_that_is_merely_shorter() {
         let processes = vec![process("polkit")];
 
-        let ecosystem = detect_ecosystem_info(&processes);
+        let ecosystem = detect_ecosystem_info(&processes, true);
         assert!(ecosystem.polkit.is_none());
     }
 
@@ -1112,7 +1145,7 @@ gtk-font-name=Noto Sans,  10
     fn detects_the_wallpaper_and_launcher_backends() {
         let processes = vec![process("awww-daemon"), process("bemenu")];
 
-        let ecosystem = detect_ecosystem_info(&processes);
+        let ecosystem = detect_ecosystem_info(&processes, true);
         assert_eq!(
             ecosystem
                 .wallpaper
@@ -1130,7 +1163,7 @@ gtk-font-name=Noto Sans,  10
     fn shows_the_implementation_of_a_generic_backend() {
         let processes = vec![running("stalonetray", "/usr/bin/stalonetray")];
 
-        let ecosystem = detect_ecosystem_info(&processes);
+        let ecosystem = detect_ecosystem_info(&processes, true);
         assert_eq!(
             ecosystem.tray.as_ref().map(|(label, _)| label.as_str()),
             Some("stalonetray")
@@ -1147,7 +1180,7 @@ gtk-font-name=Noto Sans,  10
             running("xdg-desktop-por", "/usr/lib/xdg-desktop-portal"),
         ];
 
-        let ecosystem = detect_ecosystem_info(&processes);
+        let ecosystem = detect_ecosystem_info(&processes, true);
         assert_eq!(
             ecosystem.portal.as_ref().map(|(label, _)| label.as_str()),
             Some("xdg-desktop-portal-hyprland")
@@ -1161,7 +1194,7 @@ gtk-font-name=Noto Sans,  10
             "/usr/lib/xdg-desktop-portal-gtk",
         )];
 
-        let ecosystem = detect_ecosystem_info(&processes);
+        let ecosystem = detect_ecosystem_info(&processes, true);
         assert_eq!(
             ecosystem.portal.as_ref().map(|(label, _)| label.as_str()),
             Some("xdg-desktop-portal-gtk")
@@ -1172,7 +1205,7 @@ gtk-font-name=Noto Sans,  10
     fn keeps_the_label_of_a_backend_that_names_itself() {
         let processes = vec![running("waybar", "/usr/bin/waybar")];
 
-        let ecosystem = detect_ecosystem_info(&processes);
+        let ecosystem = detect_ecosystem_info(&processes, true);
         assert_eq!(
             ecosystem.bar.as_ref().map(|(label, _)| label.as_str()),
             Some("waybar")
@@ -1184,10 +1217,37 @@ gtk-font-name=Noto Sans,  10
         // the kernel keeps only the first 15 characters of a process name
         let processes = vec![process("polkit_gnome_au")];
 
-        let ecosystem = detect_ecosystem_info(&processes);
+        let ecosystem = detect_ecosystem_info(&processes, true);
         assert_eq!(
             ecosystem.polkit.as_ref().map(|(label, _)| label.as_str()),
             Some("polkit")
+        );
+    }
+
+    #[test]
+    fn version_probing_is_opt_in() {
+        // The default render never shows versions. Probing them costs a
+        // command per backend (~100 ms), so the fast path must skip it.
+        let processes = vec![running("swaync", "/usr/bin/swaync")];
+
+        let plain = detect_ecosystem_info(&processes, false);
+        assert_eq!(
+            plain
+                .notifications
+                .as_ref()
+                .map(|(label, _)| label.as_str()),
+            Some("swaync")
+        );
+        assert_eq!(
+            plain.notifications.as_ref().and_then(|(_, v)| v.as_ref()),
+            None,
+            "the default path must not spawn --version probes"
+        );
+
+        let detailed = detect_ecosystem_info(&processes, true);
+        assert!(
+            detailed.notifications.unwrap().1.is_some(),
+            "explicit requests still get probed versions"
         );
     }
 }
