@@ -42,6 +42,12 @@ impl Spinner {
         }
     }
 
+    /// Milliseconds to wait before drawing the first frame. A local run
+    /// finishes in roughly 400 ms, so the spinner stays invisible on a healthy
+    /// machine and there is no prompt to clean up. It only appears when a
+    /// probe or plugin genuinely stalls, where a progress hint is useful.
+    const SPINNER_DELAY_MS: u64 = 500;
+
     pub fn run<F, T>(self, f: F) -> T
     where
         F: FnOnce() -> T,
@@ -51,9 +57,22 @@ impl Spinner {
 
         let handle = thread::spawn(move || {
             let mut stdout = io::stdout();
-            let mut frame = 0;
             let start = Instant::now();
+            let mut printed = false;
 
+            // Wait out the grace period first. If collection finishes before
+            // the deadline, return without ever touching stdout.
+            loop {
+                if rx.try_recv().is_ok() {
+                    return false;
+                }
+                if start.elapsed() >= Duration::from_millis(Self::SPINNER_DELAY_MS) {
+                    break;
+                }
+                thread::sleep(Duration::from_millis(20));
+            }
+
+            let mut frame = 0;
             loop {
                 if rx.try_recv().is_ok() {
                     break;
@@ -70,19 +89,24 @@ impl Spinner {
                 )
                 .ok();
                 stdout.flush().ok();
+                printed = true;
 
                 frame += 1;
                 thread::sleep(Duration::from_millis(80));
             }
+
+            printed
         });
 
         let result = f();
 
         let _ = tx.send(());
-        let _ = handle.join();
+        let printed = handle.join().unwrap_or(false);
 
-        print!("\r\x1b[2K");
-        io::stdout().flush().ok();
+        if printed {
+            print!("\r\x1b[2K");
+            io::stdout().flush().ok();
+        }
 
         result
     }

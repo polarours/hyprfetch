@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Performance
+
+- `hyprfetch` now starts showing output in about 0.4 s instead of ~2.3 s. The shared
+  command helper waited for the full timeout when a driver (notably `nvidia-smi`)
+  left a background process holding its output pipe; it now drains buffered output
+  with a short grace period once the command exits, without waiting for EOF or
+  burning the whole timeout. Network, audio and media probes benefit as well.
+- The "Collecting system information" spinner no longer flashes in a normal run:
+  it waits 500 ms before drawing, so it only appears when a probe or plugin
+  genuinely stalls.
+
 ### Fixed
 
 - NetworkManager is detected again: the process list carries lowercased names and a root

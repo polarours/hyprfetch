@@ -134,7 +134,14 @@ pub enum CommandWait {
 /// reported as a timeout; and `wait_with_output` reads until EOF with no
 /// deadline, so a background descendant holding the pipe hung the caller.
 /// Reader threads drain both pipes continuously, and the final read is capped
-/// by the remaining time budget.
+/// by a short grace period once the child exits.
+// Grace period for the reader threads after a child exits. The child is
+// gone, so anything it wrote is already in the pipes; this only gives the
+// readers a moment to hand over their buffered chunks. Waiting for EOF here
+// would hang on a background descendant that inherited the pipe, and waiting
+// for the full deadline would stall every such command for the whole timeout.
+const DRAIN_GRACE: Duration = Duration::from_millis(100);
+
 pub fn wait_with_deadline(mut child: Child, timeout: Duration) -> io::Result<CommandWait> {
     let stdout = child.stdout.take();
     let stderr = child.stderr.take();
@@ -163,11 +170,15 @@ pub fn wait_with_deadline(mut child: Child, timeout: Duration) -> io::Result<Com
         thread::sleep(Duration::from_millis(10));
     };
 
-    // Collect everything written up to the deadline. This bounds the wait
-    // even when a background descendant never closes the pipe.
-    let deadline = started + timeout;
-    let stdout = collect_until(rx_out, deadline);
-    let stderr = collect_until(rx_err, deadline);
+    // The child has exited, so all output it produced is already in the
+    // pipes. Drain it with a short grace period instead of the full timeout:
+    // a background descendant that inherited the pipe never closes it, and
+    // waiting until the original deadline stalled every such command (e.g.
+    // nvidia-smi) for its whole budget. A reader that reached EOF drops its
+    // sender immediately, so ordinary commands return in microseconds.
+    let drain_deadline = Instant::now() + DRAIN_GRACE;
+    let stdout = collect_until(rx_out, drain_deadline);
+    let stderr = collect_until(rx_err, drain_deadline);
     Ok(CommandWait::Finished(FinishedCommand {
         status,
         stdout,
