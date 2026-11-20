@@ -242,8 +242,10 @@ mod tests {
     ///   system);
     /// - github uses the Dark Classic palette (GitHub's newer default dark
     ///   ships a different, darker tone set);
-    /// - gruvbox, gruvbox-light, solarized-light, monokai and material match
-    ///   their widely published standards.
+    /// - material matches the `darker` style of `kaicataldo/material.vim`
+    ///   (fg `#eeffff`, bg `#212121`);
+    /// - gruvbox, gruvbox-light, solarized-light and monokai match their
+    ///   widely published standards.
     #[test]
     fn foregrounds_and_backgrounds_match_their_official_palettes() {
         let ground_truth = [
@@ -261,6 +263,7 @@ mod tests {
             (PaletteName::Everforest, "#d3c6aa", "#2d353b"),
             (PaletteName::Kanagawa, "#dcd7ba", "#1f1f28"),
             (PaletteName::Monokai, "#f8f8f2", "#272822"),
+            (PaletteName::Material, "#eeffff", "#212121"),
             (PaletteName::Github, "#c9d1d9", "#0d1117"),
         ];
         for (palette, foreground, background) in ground_truth {

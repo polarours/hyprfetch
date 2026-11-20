@@ -206,6 +206,20 @@ fn detect_terminal_width() -> Option<usize> {
     })
 }
 
+/// The number of rows the terminal shows, when it can be asked.
+///
+/// The animated reveal steps the cursor back up over the printed output, so
+/// it needs to know the output fits on screen; a query that fails leaves the
+/// caller on the safe single-pass reveal.
+pub fn detect_terminal_rows() -> Option<usize> {
+    query_terminal_rows().or_else(|| {
+        env::var("LINES")
+            .ok()
+            .and_then(|value| value.parse::<usize>().ok())
+            .filter(|rows| *rows > 0)
+    })
+}
+
 #[cfg(unix)]
 fn query_terminal_width() -> Option<usize> {
     use libc::{STDOUT_FILENO, TIOCGWINSZ, ioctl, winsize};
@@ -224,8 +238,31 @@ fn query_terminal_width() -> Option<usize> {
     (result == 0 && size.ws_col > 0).then_some(size.ws_col as usize)
 }
 
+#[cfg(unix)]
+fn query_terminal_rows() -> Option<usize> {
+    use libc::{STDOUT_FILENO, TIOCGWINSZ, ioctl, winsize};
+
+    if !io::stdout().is_terminal() {
+        return None;
+    }
+
+    let mut size = winsize {
+        ws_row: 0,
+        ws_col: 0,
+        ws_xpixel: 0,
+        ws_ypixel: 0,
+    };
+    let result = unsafe { ioctl(STDOUT_FILENO, TIOCGWINSZ, &mut size) };
+    (result == 0 && size.ws_row > 0).then_some(size.ws_row as usize)
+}
+
 #[cfg(not(unix))]
 fn query_terminal_width() -> Option<usize> {
+    None
+}
+
+#[cfg(not(unix))]
+fn query_terminal_rows() -> Option<usize> {
     None
 }
 

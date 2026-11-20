@@ -6,9 +6,11 @@ use serde::Serialize;
 
 use crate::util::{basename, strip_wrapping_quotes};
 
+use std::time::Duration;
+
 use super::ProviderError;
 use super::SystemProvider;
-use super::read_trimmed;
+use super::{read_trimmed, run_with_timeout};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct OsInfo {
@@ -219,16 +221,18 @@ fn count_dpkg_packages() -> Option<usize> {
     (count > 0).then_some(count)
 }
 
+/// How long the package manager queries may take before the row gives up.
+const PACKAGE_PROBE_TIMEOUT: Duration = Duration::from_millis(2_000);
+
 fn count_rpm_packages() -> Option<usize> {
-    let output = std::process::Command::new("rpm")
-        .args(["-qa", "--queryformat", "%{NAME}\n"])
-        .output()
-        .ok()?;
-    if !output.status.success() {
-        return None;
-    }
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let count = stdout.lines().filter(|line| !line.is_empty()).count();
+    // The rpm database is locked while another transaction runs, so the
+    // query is bounded like every other external probe.
+    let output = run_with_timeout(
+        "rpm",
+        &["-qa", "--queryformat", "%{NAME}\n"],
+        PACKAGE_PROBE_TIMEOUT,
+    )?;
+    let count = output.lines().filter(|line| !line.is_empty()).count();
     (count > 0).then_some(count)
 }
 

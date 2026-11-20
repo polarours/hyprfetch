@@ -1,4 +1,5 @@
 use anyhow::Result;
+use std::env;
 use std::io::{self, Write};
 use std::thread;
 use std::time::Duration;
@@ -56,8 +57,12 @@ impl App {
             util::stdout_is_tty(),
         );
         let spinner_palette = runtime.appearance.palette;
+        // The spinner follows the same colour rules as the rendered output:
+        // NO_COLOR turns the auto mode off for both.
         let spinner_colors = runtime.appearance.color == crate::model::ColorMode::Always
-            || (runtime.appearance.color == crate::model::ColorMode::Auto && util::stdout_is_tty());
+            || (runtime.appearance.color == crate::model::ColorMode::Auto
+                && util::stdout_is_tty()
+                && env::var_os("NO_COLOR").is_none());
 
         let mut collect = || {
             providers.hyprland.prefetch();
@@ -95,11 +100,24 @@ impl App {
         // The chosen style upgrades the reveal now that the logo width is
         // known: a layout without a logo column falls back to plain lines,
         // and a gated run stays static whatever the style says.
+        //
+        // The split and wave stories step the cursor back up over the printed
+        // output; when the output is as tall as the window, the cursor cannot
+        // return to the first row and the intermediate frames would scramble.
+        // The single-pass reveal has no cursor motion, so it takes over.
+        let fits_window = match render::detect_terminal_rows() {
+            Some(rows) => output.lines().count() < rows,
+            None => false,
+        };
         let reveal = match (runtime.animation, logo_width) {
-            (animation::RevealStyle::Split, Some(width)) if reveal == animation::Reveal::Lines => {
+            (animation::RevealStyle::Split, Some(width))
+                if reveal == animation::Reveal::Lines && fits_window =>
+            {
                 animation::Reveal::TwoPhase { width }
             }
-            (animation::RevealStyle::Wave, Some(width)) if reveal == animation::Reveal::Lines => {
+            (animation::RevealStyle::Wave, Some(width))
+                if reveal == animation::Reveal::Lines && fits_window =>
+            {
                 animation::Reveal::Wave { width }
             }
             (_, _) => reveal,

@@ -311,14 +311,21 @@ const COMM_NAME_LIMIT: usize = 15;
 impl Backend {
     /// Whether a name from the process list belongs to this backend.
     ///
-    /// The kernel truncates a process name to 15 characters, so `xdg-desktop-portal`
-    /// is listed as `xdg-desktop-por` and is matched by that prefix.
+    /// The kernel truncates a process name to 15 characters, so
+    /// `xdg-desktop-portal` is listed as `xdg-desktop-por` and is matched by
+    /// that prefix. The comparison ignores case: the process list carries a
+    /// lowercased name, and a root daemon such as NetworkManager offers no
+    /// readable executable path to match instead.
     fn matches(self, process_name: &str) -> bool {
-        if process_name == self.process {
+        if process_name.eq_ignore_ascii_case(self.process) {
             return true;
         }
 
-        process_name.len() == COMM_NAME_LIMIT && self.process.starts_with(process_name)
+        process_name.len() == COMM_NAME_LIMIT
+            && self
+                .process
+                .to_ascii_lowercase()
+                .starts_with(&process_name.to_ascii_lowercase())
     }
 }
 
@@ -942,6 +949,18 @@ gtk-font-name=Noto Sans,  10
         assert_eq!(
             ecosystem.automount.as_ref().map(|(l, _)| l.as_str()),
             Some("udisks")
+        );
+    }
+
+    #[test]
+    fn matches_a_lowercased_process_name() {
+        // read_processes lowercases comm, and a root daemon such as
+        // NetworkManager offers no readable executable path, so the name
+        // comparison cannot rely on the case of the backend table.
+        let ecosystem = detect_ecosystem_info(&[process("networkmanager")]);
+        assert_eq!(
+            ecosystem.network.as_ref().map(|(label, _)| label.as_str()),
+            Some("NetworkManager")
         );
     }
 

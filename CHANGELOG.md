@@ -5,6 +5,27 @@ All notable changes to hyprfetch will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- NetworkManager is detected again: the process list carries lowercased names and a root
+  daemon offers no readable executable, so the name comparison is now case-insensitive (it
+  reported `iwd` on a machine running both).
+- Keys in the minimal layout keep their accent colors: the right-aligned padding made the
+  label miss its color match and every short key rendered in the muted gray.
+- Three unbounded waits on external commands are bounded: the shared helper now drains the
+  pipes under its deadline (a background descendant holding the pipe can no longer hang the
+  run), `rpm -qa` gives up while the database is locked by another transaction, and
+  `nvidia-smi` no longer stalls behind a wedged driver.
+- The spinner respects `NO_COLOR` like the rendered output does.
+- The two-phase and wave reveals fall back to the plain line-by-line reveal when the output
+  is as tall as the terminal window, whose cursor cannot step back to the first row.
+- Twenty-seven bundled artworks lost ink where a literal `$` was mistaken for a fastfetch
+  colour marker; literal dollars are now escaped in the assets, so every ink dot survives.
+- The material theme's officially verified foreground/background is locked in the ground-truth
+  test with the rest of the catalogue.
+
 ## [0.3.1] - 2026-11-19
 
 The initial public release of hyprfetch, a Hyprland-native fetch utility.
@@ -28,7 +49,11 @@ The initial public release of hyprfetch, a Hyprland-native fetch utility.
   (fcitx5/ibus), night light (gammastep/wlsunset/hyprsunset/redshift), power
   (power-profiles/tuned) and automount (udisks). The compact row stays short with a `+N`
   remainder, a fixed name width and an opt-in `versions = true`.
-- A logo catalogue of 395 presets drawn from the bundled artwork and rendered in a minimal
+- Thirty-four alternate drawings of covered distros — numbered takes (`arch2`, `artix2`,
+  `macos2`, `void2`, ...), older artwork (`fedora_old`, `ubuntu_old`, ...) and retro variants —
+  are selectable by name without joining the auto detection (`--logo arch2`), and the `minimal`
+  preset now renders the bundled wordmark artwork instead of a bare string.
+- A logo catalogue of 429 presets drawn from the bundled artwork and rendered in a minimal
   dot-outline house style with a brand-matched tone gradient: `os-release` auto detection with
   family fallback, `--logo` override, and coverage of the Arch, Fedora, Debian, Ubuntu, SUSE and
   Gentoo families, their derivatives, the BSDs, niche Linux distros and alternate platforms.

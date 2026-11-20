@@ -13,7 +13,7 @@ Unlike generic fetch tools, it treats Hyprland runtime data as first-class outpu
 - Output modes: styled split layout, plain mode, minimal mode, JSON mode, diagnostics mode, configurable module order, width-aware layout fallback for narrow terminals, share preset that leads with the theme and the live session state, an animated line-by-line reveal on by default, `--watch` continuous refresh mode
 - Customization: TOML-driven module order, per-module options, user-defined display labels, and command plugins
 - Palettes: 17 built-in themes — hypr, mono, catppuccin, dracula, gruvbox, gruvbox-light, nord, one-dark, solarized-dark, solarized-light, rose-pine, ayu, everforest, kanagawa, monokai, material, github (list with `--list-themes`)
-- Logo system: bundled distro-aware text logos stored in `assets/logos/`, with `os-release` auto detection, family fallback, and explicit override support (395 built-in presets)
+- Logo system: bundled distro-aware text logos stored in `assets/logos/`, with `os-release` auto detection, family fallback, and explicit override support (429 built-in presets, including numbered and retro variants of the artwork selectable by name)
 - Package managers: pacman, dpkg, rpm, nix, homebrew
 - Config: `~/.config/hyprfetch/config.toml` or `$XDG_CONFIG_HOME/hyprfetch/config.toml`
 
@@ -474,7 +474,7 @@ do not apply to the machine stay out of the output instead.
 - `hypr-active-window`
 - `hypr-cursor`
 - `hypr-workspace-history`
-- `hypr-rice`
+- `hypr-rice` — available but not part of the default module order: it costs several extra `hyprctl getoption` calls, so add it to the config when you want the rice rows
 - `hypr-config`
 - `hypr-rules`
 - `hypr-devices`
@@ -554,12 +554,16 @@ its own artwork instead of a generic fallback:
 - **Niche and community distros**: 170 more presets, from `adelie`, `anarchy`,
   `athenaos`, `cereus`, `crystal`, `cosmic`, `hamonikr`, `parch` and `pikaos` to
   `redstar`, `t2`, `templeos` and `yiffos`, plus alternate platforms like `amiga`,
-  `irix`, `os2warp`, `pacbsd`, `pengwin` and `wii_linux`. Every usable artwork file
-  in `assets/logos/` is wired; only stale `_old` and numbered alternates are skipped.
+  `irix`, `os2warp`, `pacbsd`, `pengwin` and `wii_linux`. Alternate drawings of
+  covered distros — numbered takes (`arch2`, `artix2`, `macos2`, `void2`, ...), older
+  artwork (`fedora_old`, `linuxmint_old`, `ubuntu_old`, ...) and retro variants — are
+  wired as name-only presets: they claim no os-release alias, so auto-detection never
+  picks them; a user selects one explicitly with `--logo arch2`. The `minimal` preset
+  renders the bundled wordmark artwork.
 - **Platform and generic**: `hypr`, `linux`, `windows`, `windows-95`, `windows-8`,
   `windows-11`, `windows-2025`, `macos`
 
-Two extra presets are also available: `minimal`, which renders the `hyprfetch` wordmark instead of distro art, and `none`, which hides the logo entirely. Run `hyprfetch --list-logos` for the authoritative list of all 395 presets plus `auto`.
+Two extra presets are also available: `minimal`, which renders the `hyprfetch` wordmark instead of distro art, and `none`, which hides the logo entirely. Run `hyprfetch --list-logos` for the authoritative list of all 429 presets plus `auto`.
 
 ASCII logos are rendered as a minimal `·` dot-outline skeleton: the source symbols (fastfetch's `o/+/s`, figlet letters, etc.) are replaced with dots while structural strokes keep each distro's silhouette; the selected theme supplies the color. Logos already drawn with Unicode block or braille characters keep their own art.
 
@@ -596,8 +600,11 @@ workspace history and input modules report their full detail. New ideas are
 tracked in the changelog's Unreleased section.
 
 The logo catalogue is complete: every usable artwork file in `assets/logos/` is
-wired into a preset (395 total). The remaining files are `_old` and numbered
-alternates of already-covered distros, kept on disk but deliberately unwired.
+wired into a preset (429 total), and the alternate drawings are selectable by
+name. Only a handful of files stay unwired on purpose: artwork whose stem
+(`rhel`, `aurora`, `rebornos`, `amazon_linux`, `ultramarine`, `unknown`) is
+already an os-release alias of a covered distro, the fastfetch logo, and two
+orphaned `_small` files whose parent drawing does not exist.
 
 ## License
 

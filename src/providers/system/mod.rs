@@ -8,8 +8,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::OnceLock;
-use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use thiserror::Error;
 
@@ -81,36 +80,22 @@ impl SystemProvider {
 
 /// Runs a command and gives up on it after `timeout`.
 ///
-/// A driver that does not answer must not be able to hang the whole run.
+/// A driver that does not answer must not be able to hang the whole run. The
+/// deadline covers the pipes as well: a background descendant that inherited
+/// stdout cannot stretch the read past it.
 pub(super) fn run_with_timeout(program: &str, args: &[&str], timeout: Duration) -> Option<String> {
-    let mut child = Command::new(program)
+    let child = Command::new(program)
         .args(args)
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()
         .ok()?;
 
-    let started = Instant::now();
-    loop {
-        match child.try_wait() {
-            Ok(Some(_)) => {
-                let output = child.wait_with_output().ok()?;
-                if !output.status.success() {
-                    return None;
-                }
-                return Some(String::from_utf8_lossy(&output.stdout).to_string());
-            }
-            Ok(None) => {}
-            Err(_) => return None,
+    match crate::util::wait_with_deadline(child, timeout) {
+        Ok(crate::util::CommandWait::Finished(output)) if output.status.success() => {
+            Some(String::from_utf8_lossy(&output.stdout).to_string())
         }
-
-        if started.elapsed() >= timeout {
-            let _ = child.kill();
-            let _ = child.wait();
-            return None;
-        }
-
-        thread::sleep(Duration::from_millis(10));
+        _ => None,
     }
 }
 
@@ -118,4 +103,34 @@ pub(super) fn run_with_timeout(program: &str, args: &[&str], timeout: Duration) 
 pub(super) fn read_trimmed(path: PathBuf) -> Result<String, ProviderError> {
     let raw = fs::read_to_string(&path).map_err(ProviderError::io)?;
     Ok(raw.trim().to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::{Duration, Instant};
+
+    use super::run_with_timeout;
+
+    #[test]
+    fn a_descendant_holding_the_pipe_cannot_stretch_the_wait() {
+        // The child exits at once but leaves a background grandchild holding
+        // the pipe. The helper used to read until EOF with no deadline and
+        // hang for the grandchild's lifetime; now the deadline bounds it.
+        let started = Instant::now();
+        let output = run_with_timeout(
+            "sh",
+            &["-c", "echo done; sleep 30 &"],
+            Duration::from_millis(300),
+        );
+        let elapsed = started.elapsed();
+        assert!(
+            elapsed < Duration::from_secs(2),
+            "the wait stretched past its deadline: {elapsed:?}"
+        );
+        assert_eq!(
+            output.as_deref(),
+            Some("done\n"),
+            "the output before the deadline must survive"
+        );
+    }
 }

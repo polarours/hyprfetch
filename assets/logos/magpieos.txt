@@ -1,7 +1,7 @@
         ;00000     :000Ol
      .x00kk00:    O0kk00k;
     l00:   :00.  o0k   :O0k.
-  .k0k.     x$2d$dddd$1k'    .d00;
+  .k0k.     x$2d$$dddd$1k'    .d00;
   k0k.      $2.dddddl       $1o00,
  o00.        $2':cc:.        $1d0O
 .00l                       ,00.

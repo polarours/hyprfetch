@@ -169,7 +169,7 @@ macro_rules! logo_catalog {
 // entry is put together.
 logo_catalog! {
     None => "none", [], "", White, White, White, "";
-    Minimal => "minimal", [], "hyprfetch", Cyan, Cyan, Cyan, "";
+    Minimal => "minimal", [], include_str!("../assets/logos/minimal.txt"), Cyan, Cyan, Cyan, "";
     Hypr => "hypr", ["hyprfetch"], include_str!("../assets/logos/linux.txt"), Blue, Cyan, White, include_str!("../assets/logos/linux_small.txt");
     Linux => "linux", ["gnu/linux", "unknown"], include_str!("../assets/logos/linux.txt"), Blue, Cyan, White, include_str!("../assets/logos/linux_small.txt");
     Windows => "windows", ["windows nt", "microsoft", "win32", "win64"], include_str!("../assets/logos/windows.txt"), Blue, Cyan, White, "";
@@ -563,6 +563,45 @@ logo_catalog! {
     XrayOs => "xray_os", [], include_str!("../assets/logos/xray_os.txt"), Blue, Cyan, White, "";
     Yiffos => "yiffos", [], include_str!("../assets/logos/yiffos.txt"), Blue, Magenta, White, "";
     Zraxyl => "zraxyl", [], include_str!("../assets/logos/zraxyl.txt"), Blue, Cyan, White, "";
+
+    // Alternate artwork of covered distros, selectable by name only:
+    // numbered takes (`arch2`), older drawings (`fedora_old`) and retro
+    // variants. They list no aliases, so the os-release detection never
+    // resolves to them; a user picks one explicitly with `--logo arch2`.
+    Arch2 => "arch2", [], include_str!("../assets/logos/arch2.txt"), Blue, Cyan, White, "";
+    Arch3 => "arch3", [], include_str!("../assets/logos/arch3.txt"), Blue, Cyan, White, "";
+    ArchOld => "arch_old", [], include_str!("../assets/logos/arch_old.txt"), Blue, Cyan, White, "";
+    Archcraft2 => "archcraft2", [], include_str!("../assets/logos/archcraft2.txt"), Cyan, Blue, White, "";
+    Armbian2 => "armbian2", [], include_str!("../assets/logos/armbian2.txt"), Yellow, Red, White, "";
+    Artix2 => "artix2", [], include_str!("../assets/logos/artix2.txt"), Cyan, Magenta, White, include_str!("../assets/logos/artix2_small.txt");
+    Asahi2 => "asahi2", [], include_str!("../assets/logos/asahi2.txt"), Green, Cyan, White, "";
+    Haiku2 => "haiku2", [], include_str!("../assets/logos/haiku2.txt"), Green, Cyan, White, "";
+    Alpine2 => "alpine2", [], include_str!("../assets/logos/alpine2.txt"), Blue, Cyan, White, include_str!("../assets/logos/alpine2_small.txt");
+    Kiss2 => "kiss2", [], include_str!("../assets/logos/kiss2.txt"), Yellow, White, White, "";
+    Linuxmint2 => "linuxmint2", [], include_str!("../assets/logos/linuxmint2.txt"), Green, Cyan, White, "";
+    LinuxmintOld => "linuxmint_old", [], include_str!("../assets/logos/linuxmint_old.txt"), Green, Cyan, White, "";
+    Macos2 => "macos2", [], include_str!("../assets/logos/macos2.txt"), White, Cyan, White, include_str!("../assets/logos/macos2_small.txt");
+    Macos3 => "macos3", [], include_str!("../assets/logos/macos3.txt"), White, Cyan, White, "";
+    Mx2 => "mx2", [], include_str!("../assets/logos/mx2.txt"), Green, Cyan, White, "";
+    Netbsd2 => "netbsd2", [], include_str!("../assets/logos/netbsd2.txt"), Red, Yellow, White, "";
+    Vanilla2 => "vanilla2", [], include_str!("../assets/logos/vanilla2.txt"), Cyan, Blue, White, "";
+    Void2 => "void2", [], include_str!("../assets/logos/void2.txt"), Green, Cyan, White, include_str!("../assets/logos/void2_small.txt");
+    NixosOld => "nixos_old", [], include_str!("../assets/logos/nixos_old.txt"), Blue, Cyan, White, include_str!("../assets/logos/nixos_old_small.txt");
+    OpensuseLeapOld => "opensuse_leap_old", [], include_str!("../assets/logos/opensuse_leap_old.txt"), Green, Yellow, White, "";
+    OpensuseTumbleweed2 => "opensuse_tumbleweed2", [], include_str!("../assets/logos/opensuse_tumbleweed2.txt"), Green, Yellow, White, "";
+    OpensuseTumbleweedOld => "opensuse_tumbleweed_old", [], include_str!("../assets/logos/opensuse_tumbleweed_old.txt"), Green, Yellow, White, "";
+    FedoraOld => "fedora_old", [], include_str!("../assets/logos/fedora_old.txt"), Blue, Cyan, White, "";
+    RhelOld => "rhel_old", [], include_str!("../assets/logos/rhel_old.txt"), Blue, Cyan, White, "";
+    UbuntuOld => "ubuntu_old", [], include_str!("../assets/logos/ubuntu_old.txt"), Yellow, Red, White, "";
+    UbuntuOld2 => "ubuntu_old2", [], include_str!("../assets/logos/ubuntu_old2.txt"), Yellow, Red, White, include_str!("../assets/logos/ubuntu_old2_small.txt");
+    AerynosOld => "aerynos_old", [], include_str!("../assets/logos/aerynos_old.txt"), Blue, Cyan, White, "";
+    AoscosOld => "aoscos_old", [], include_str!("../assets/logos/aoscos_old.txt"), Blue, Cyan, White, "";
+    Aoscosretro => "aoscosretro", [], include_str!("../assets/logos/aoscosretro.txt"), Blue, Cyan, White, include_str!("../assets/logos/aoscosretro_small.txt");
+    AthenaosOld => "athenaos_old", [], include_str!("../assets/logos/athenaos_old.txt"), Indigo, Blue, White, "";
+    DragonflyOld => "dragonfly_old", [], include_str!("../assets/logos/dragonfly_old.txt"), Red, Yellow, White, "";
+    EvolutionosOld => "evolutionos_old", [], include_str!("../assets/logos/evolutionos_old.txt"), Blue, Cyan, White, "";
+    MidosOld => "midos_old", [], include_str!("../assets/logos/midos_old.txt"), Blue, Cyan, White, "";
+    XeniaOld => "xenia_old", [], include_str!("../assets/logos/xenia_old.txt"), Yellow, Yellow, White, "";
 }
 
 /// Resolve the logo to use.
@@ -730,7 +769,7 @@ mod tests {
     fn every_logo_line_is_dot_outline() {
         for preset in LogoPreset::all() {
             if *preset == LogoPreset::None || *preset == LogoPreset::Minimal {
-                continue; // no art / a plain-text wordmark, not shading art
+                continue; // no art / the wordmark keeps its own block glyphs
             }
             for line in definition(*preset).lines() {
                 for character in line.chars() {

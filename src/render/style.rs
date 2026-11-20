@@ -17,9 +17,11 @@ pub(super) fn colors_enabled(mode: ColorMode) -> bool {
 /// Accent index for a key label. Keys are grouped by topic so a screenshot
 /// shows related facts in the same color; unknown keys use the muted tone.
 fn key_accent(key: &str) -> Option<usize> {
-    // render_key appends a colon in the header layout ("OS:"), so match on
-    // the bare label. Without trimming, every key fell through to the muted
-    // tone and the whole output looked gray.
+    // render_key appends a colon in the header layouts ("OS:") and pads with
+    // leading spaces in the right-aligned minimal layout (" OS"). Without
+    // trimming both, the label falls through to the muted tone and the whole
+    // row looks gray.
+    let key = key.trim_start();
     let key = key.strip_suffix(':').unwrap_or(key);
     match key {
         "OS" | "Host" | "Kernel" => Some(0),
@@ -230,6 +232,20 @@ mod tests {
                 "bar {bar:?} is wider than {budget}"
             );
         }
+    }
+
+    #[test]
+    fn padded_keys_keep_their_accent_color() {
+        // The right-aligned minimal layout pads short keys with leading
+        // spaces (" OS"); the padding must not hide the label from its
+        // accent color.
+        use super::style_key;
+        let plain = style_key("OS", PaletteName::Hypr, true);
+        let padded = style_key(" OS", PaletteName::Hypr, true);
+        let color_of = |styled: &str| styled.split('m').next().unwrap_or_default().to_string();
+        assert_eq!(color_of(&padded), color_of(&plain));
+        let muted = style_key(" SomeUnknownKey", PaletteName::Hypr, true);
+        assert_ne!(color_of(&padded), color_of(&muted));
     }
 
     #[test]

@@ -1,12 +1,13 @@
 use std::collections::{BTreeSet, HashMap};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use serde::Serialize;
 
 use super::ProviderError;
 use super::SystemProvider;
-use super::read_trimmed;
+use super::{read_trimmed, run_with_timeout};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct GpuInfo {
@@ -231,23 +232,24 @@ fn match_nvidia_memory(
     }
 }
 
+/// How long the `nvidia-smi` query may take before its numbers give up. A
+/// wedged driver or a runtime-PM wake must not stall the whole fetch.
+const NVIDIA_PROBE_TIMEOUT: Duration = Duration::from_millis(2_000);
+
 /// Every NVIDIA device, keyed by PCI bus id.
 fn read_nvidia_gpus() -> HashMap<String, NvidiaGpu> {
-    let Ok(output) = std::process::Command::new("nvidia-smi")
-        .args([
+    let Some(output) = run_with_timeout(
+        "nvidia-smi",
+        &[
             "--query-gpu=pci.bus_id,utilization.gpu,memory.total",
             "--format=csv,noheader,nounits",
-        ])
-        .output()
-    else {
+        ],
+        NVIDIA_PROBE_TIMEOUT,
+    ) else {
         return HashMap::new();
     };
-    if !output.status.success() {
-        return HashMap::new();
-    }
 
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    parse_nvidia_smi(&stdout)
+    parse_nvidia_smi(&output)
 }
 
 /// Parse the CSV output of `nvidia-smi`. A card with unavailable utilization
