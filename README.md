@@ -49,6 +49,59 @@ Default output:
 hyprfetch
 ```
 
+On the machine this README was written on, that prints (colours left out here —
+run it in a terminal to see the theme, the usage bars and the logo in colour):
+
+```text
+                  ··                    polarours@polarours-archlinux
+                 ····                   -----------------------------
+                ····/                  OS:  Arch Linux
+               ·······                 Host:  83DG (Legion Y7000P IRX9)
+              ·········                Kernel:  7.3.4-arch1-2
+              ··········               Uptime:  9m
+            ·/···········              Packages:  2318 (pacman)
+           ·/····/········             Shell:  zsh
+          ·/···············            Terminal:  kitty
+         ·/················/·          CPU:  Intel(R) Core(TM) i7-14700HX  26.4%… ###.......
+        ·/····················         GPU:  NVIDIA GeForce RTX 4060 Max-Q /… ####......
+       ··············/·········        Memory:  8.2 GiB / 15 GiB (53%) #####.....
+      ··········      ··········       Swap:  2.3 GiB / 7.7 GiB (30%) ###.......
+     ·········/        ··········      Disk (/):  836 GiB / 953 GiB (88%) - btrfs
+    /·········/        ········/·      Battery (L23M4PK5):  100% [Full]
+  ·/········/··        ··/·········    Locale:  en_US.UTF-8
+ ·········                 ···/·····   Network:  172.20.10.2 (wlan0), SSID: howie, Signal: 95%, 1…
+·····                           ··/·/  Temp:  76°C (CPU)
+··                                 ·/  Audio:  PipeWire (Built-in Audio Analog Stereo), 35%
+                                       DateTime:  2026-11-20 15:12:17 (HKT)
+                                       Colors:  WhiteSur-Dark
+                                       Hyprland:  v0.57.2
+                                       Workspace:  2
+                                       Clients:  2
+                                       Focused:  eDP-1 (ws:2)
+                                       Session:  1 outputs, 2 ws, 2 wins
+                                       Health:  idle missing, lock missing
+                                       Instances:  1 instance, current:11cbc6c…, pid:10728,…
+                                       Splash:  "Hello everyone this is YOUR daily dose of ‘read…
+                                       Window:  Hermes [com.nousresearch.hermes, ws:2]
+                                       Cursor:  1262, 940
+                                       History:  1:Bistutu/GoMusic: 迁移网易云/汽… (eDP-1, 1…
+                                       Workspaces:  1:1 *2:1
+                                       Monitors:  1 (*eDP-1:2 2560x1600@165Hz x1.25)
+                                       Config:  ok
+                                       Rules:  0 rules
+                                       Input:  9 keyboards, 4 mice, 1 switch, keymap:English (US)
+                                       Binds:  55 binds, 2 mouse, 6 repeat, top:HL.Dispatcher(ex…
+                                       Shortcuts:  6 shortcuts, apps:com.nousresearch.hermes/quicksh…
+                                       Layouts:  dwindle
+                                       Layers:  5 surfaces, 1 output, ns:awww-daemon/quickshell/u…
+                                       GTK:  WhiteSur-Dark
+                                       Icons:  breeze
+                                       Cursor:  breeze_cursors
+                                       Font:  Noto Sans, 10
+                                       Wallpaper:  awww
+                                       Ecosystem:  bar:quickshell launch:walker notify:swaync…
+```
+
 This uses `os-release` to choose a built-in distro logo automatically. If the distro is not recognized, `hyprfetch` falls back to a generic Linux logo.
 Styled output uses `key: value` rows, a session title, and optional terminal color bars similar to classic fetch screenshots. CPU, GPU, memory and swap values include a compact colored usage bar (green → gold → red by load).
 On narrow terminals, `hyprfetch` first switches to a narrower drawing of the logo, and only drops from the logo split layout to denser text layouts when even that does not fit, instead of relying on hard wrapping.
