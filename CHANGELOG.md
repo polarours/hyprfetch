@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The README is redesigned around a full-width screenshot of the default output,
+  with a badge row, a navigation bar and grouped feature sections. The former
+  text-only output dump is gone; detailed reference material (config, plugins,
+  module IDs, data sources, logo families) is preserved and the logo families
+  now live in a collapsible section.
+
 ## [0.4.0] - 2026-11-21
 
 ### Added
