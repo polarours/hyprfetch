@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   module IDs, data sources, logo families) is preserved and the logo families
   now live in a collapsible section.
 
-## [0.4.0] - 2026-11-21
+## [0.1.0] - 2026-11-21
 
 ### Added
 
@@ -69,9 +69,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The material theme's officially verified foreground/background is locked in the ground-truth
   test with the rest of the catalogue.
 
-## [0.3.1] - 2026-11-19
+## [0.0.1] - 2026-11-19
 
-The initial public release of hyprfetch, a Hyprland-native fetch utility.
+The squashed initial baseline (`init commit`) of hyprfetch, a Hyprland-native fetch utility.
 
 ### Added
 

@@ -1,9 +1,10 @@
 <div align="center">
-  <a href="assets/screenshots/preview.png">
-    <img src="assets/screenshots/preview.png" alt="hyprfetch on Arch Linux with Hyprland, kitty and the Hypr theme" width="100%" />
-  </a>
+  <!-- exact-text SVG wordmark (dot-outline mark + Tokyo Night palette), not a generated image -->
+  <h1 style="margin:0;border:0;font-size:0;">
+    <img src="assets/hyprfetch-wordmark.svg" alt="hyprfetch" width="430" />
+  </h1>
 
-  <h1>hyprfetch</h1>
+  <p><em>A Hyprland-native fetch utility — live session state, rice-aware details, terminal presentation.</em></p>
 
   <p>
     <a href="https://github.com/polarours/hyprfetch/actions"><img src="https://img.shields.io/github/actions/workflow/status/polarours/hyprfetch/ci.yml?branch=master&label=CI&style=flat-square" alt="CI" /></a>
@@ -21,6 +22,10 @@
     <a href="#themes-and-logos"><strong>Themes &amp; Logos</strong></a> &middot;
     <a href="#development"><strong>Development</strong></a>
   </p>
+
+  <a href="assets/screenshots/preview.png">
+    <img src="assets/screenshots/preview.png" alt="hyprfetch on Arch Linux with Hyprland, kitty and the Hypr theme" width="100%" />
+  </a>
 </div>
 
 ---
