@@ -11,7 +11,7 @@ use crate::logo;
 use crate::model::ModuleOutput;
 use crate::modules::{ModuleContext, build_module};
 use crate::plugins::run_plugin;
-use crate::providers::Providers;
+use crate::providers::{Providers, SystemProvider};
 use crate::render;
 use crate::util;
 
@@ -32,7 +32,7 @@ impl App {
     fn render_with_reveal(&self, cli: CliArgs) -> Result<(String, animation::Reveal)> {
         let loaded = config::load(&cli)?;
         let mut runtime = config::merge(&cli, loaded.config);
-        let providers = Providers::new();
+        let providers = Providers::with_system(SystemProvider::with_fast(runtime.fast));
         let json = runtime.json;
         let diagnostics = runtime.diagnostics;
         // `static` turns every motion off, spinner included.

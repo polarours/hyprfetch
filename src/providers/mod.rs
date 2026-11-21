@@ -5,7 +5,7 @@ pub mod theme;
 use std::sync::Arc;
 
 use hyprland::{CommandRunner, HyprlandProvider, RealCommandRunner};
-use system::SystemProvider;
+pub use system::SystemProvider;
 use theme::ThemeProvider;
 
 #[derive(Clone)]
@@ -18,6 +18,14 @@ pub struct Providers {
 impl Providers {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Build with a system provider configured for fast or normal collection.
+    pub fn with_system(system: SystemProvider) -> Self {
+        Self {
+            system,
+            ..Self::default()
+        }
     }
 
     pub fn with_hypr_runner(runner: Arc<dyn CommandRunner>) -> Self {

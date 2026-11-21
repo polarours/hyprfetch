@@ -385,8 +385,13 @@ impl SystemProvider {
             return Err(ProviderError::not_found("no DRM GPU devices found"));
         }
 
-        // Query the vendor tool once for the whole run instead of once per GPU.
-        let nvidia_gpus = read_nvidia_gpus();
+        // The vendor tool costs a process spawn (~20 ms) and is skipped in
+        // fast mode: usage and vendor-reported VRAM are simply omitted.
+        let nvidia_gpus = if self.fast {
+            HashMap::new()
+        } else {
+            read_nvidia_gpus()
+        };
 
         Ok(gpus
             .into_iter()
@@ -394,7 +399,11 @@ impl SystemProvider {
                 let usage_percent = read_gpu_usage(&vendor, &card_path, &nvidia_gpus);
                 // nvidia-smi knows how much memory the card has; the size of
                 // the PCI bar is not the amount of video memory
-                let vram_mib = if vendor.eq_ignore_ascii_case("nvidia") {
+                let vram_mib = if self.fast {
+                    // The PCI BAR is not video memory; without the vendor tool
+                    // there is no trustworthy VRAM size, so omit it.
+                    None
+                } else if vendor.eq_ignore_ascii_case("nvidia") {
                     nvidia_gpu_memory(&card_path, &nvidia_gpus).or(vram_mib)
                 } else {
                     vram_mib

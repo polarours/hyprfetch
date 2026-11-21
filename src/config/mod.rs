@@ -28,6 +28,8 @@ pub struct AppConfig {
     pub logo: LogoConfig,
     /// How the output is animated: "split", "lines", "wave" or "static".
     pub animation: Option<crate::animation::RevealStyle>,
+    /// Skip expensive probes for a near-instant render.
+    pub fast: bool,
     pub modules: Vec<ModuleConfig>,
     pub plugins: Vec<PluginConfig>,
 }
@@ -39,6 +41,7 @@ impl Default for AppConfig {
             appearance: AppearanceConfig::default(),
             logo: LogoConfig::default(),
             animation: None,
+            fast: false,
             modules: ModuleId::default_order()
                 .iter()
                 .copied()
@@ -200,6 +203,7 @@ pub struct RuntimeConfig {
     pub json: bool,
     pub diagnostics: bool,
     pub animation: crate::animation::RevealStyle,
+    pub fast: bool,
     pub watch: bool,
     pub watch_interval: u64,
 }

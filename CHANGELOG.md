@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `--fast` (or `fast = true` in the config) skips expensive probes: CPU usage
+  sampling, the GPU vendor tool, audio/WiFi/media external commands. Every
+  module row stays but values needing those probes are omitted, never guessed.
+  Fast mode renders in ~25 ms versus ~50 ms in normal mode.
+
 ### Performance
 
 - Startup is now ~50 ms in release mode (down from ~2.3 s), close to fastfetch's

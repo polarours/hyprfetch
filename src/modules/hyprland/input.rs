@@ -358,6 +358,7 @@ mod tests {
             modules: Vec::new(),
             plugins: Vec::new(),
             json: false,
+            fast: false,
             diagnostics: false,
             animation: crate::animation::RevealStyle::Static,
             watch: false,

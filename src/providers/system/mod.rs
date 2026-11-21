@@ -62,6 +62,9 @@ impl ProviderError {
 #[derive(Debug, Clone)]
 pub struct SystemProvider {
     cpu_baseline: OnceLock<Option<cpu::CpuBaseline>>,
+    /// Skip expensive probes for a near-instant render. Values that need a
+    /// vendor tool or a sampling window are omitted rather than fabricated.
+    pub fast: bool,
 }
 
 impl Default for SystemProvider {
@@ -72,9 +75,15 @@ impl Default for SystemProvider {
 
 impl SystemProvider {
     pub fn new() -> Self {
+        Self::with_fast(false)
+    }
+
+    pub fn with_fast(fast: bool) -> Self {
         let cpu_baseline = OnceLock::new();
-        let _ = cpu_baseline.set(cpu::read_cpu_baseline());
-        Self { cpu_baseline }
+        if !fast {
+            let _ = cpu_baseline.set(cpu::read_cpu_baseline());
+        }
+        Self { cpu_baseline, fast }
     }
 }
 
@@ -109,7 +118,19 @@ pub(super) fn read_trimmed(path: PathBuf) -> Result<String, ProviderError> {
 mod tests {
     use std::time::{Duration, Instant};
 
-    use super::run_with_timeout;
+    use super::{SystemProvider, run_with_timeout};
+
+    #[test]
+    fn fast_mode_skips_the_cpu_sampling_baseline() {
+        let fast = SystemProvider::with_fast(true);
+        assert!(fast.cpu_baseline.get().is_none());
+        // Without a baseline, cpu_usage() fails and the CPU module falls back
+        // to showing the model only — the intended fast-mode degradation.
+        assert!(fast.cpu_usage().is_err());
+
+        let normal = SystemProvider::new();
+        assert!(normal.cpu_baseline.get().is_some());
+    }
 
     #[test]
     fn a_descendant_holding_the_pipe_cannot_stretch_the_wait() {

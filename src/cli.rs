@@ -24,6 +24,10 @@ pub struct CliArgs {
     pub no_config: bool,
     #[arg(long)]
     pub plain: bool,
+    /// Skip expensive probes (CPU sampling, GPU vendor tools, audio/network/media
+    /// commands) for a near-instant render. Module rows stay, with fewer values.
+    #[arg(long)]
+    pub fast: bool,
     #[arg(long)]
     pub share: bool,
     /// How the output is animated: split (logo skeleton first), lines, wave

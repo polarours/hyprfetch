@@ -113,6 +113,17 @@ Plain output:
 hyprfetch --plain
 ```
 
+Fast mode (skips expensive probes for a near-instant render):
+
+```bash
+hyprfetch --fast
+```
+
+Fast mode keeps every module row but omits values that need a sampling window
+or an external command: CPU usage % and bar, GPU usage/VRAM, audio device and
+volume, WiFi details and media players. It is also available as `fast = true`
+in the config file. Normal mode is unchanged.
+
 Share preset (optimized for rice screenshots):
 
 ```bash

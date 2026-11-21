@@ -63,7 +63,7 @@ fn locale_from_env() -> Option<String> {
         .find(|value| !value.trim().is_empty())
 }
 
-fn read_network_info() -> Result<NetworkInfo, ProviderError> {
+fn read_network_info(fast: bool) -> Result<NetworkInfo, ProviderError> {
     let route_raw = fs::read_to_string("/proc/net/route").map_err(ProviderError::io)?;
     let default_iface = parse_default_interface(&route_raw)
         .ok_or_else(|| ProviderError::not_found("no default network interface found"))?;
@@ -72,7 +72,12 @@ fn read_network_info() -> Result<NetworkInfo, ProviderError> {
         ProviderError::not_found(format!("no IP address found for interface {default_iface}"))
     })?;
 
-    let (ssid, signal_percent, speed_mbps) = read_wifi_info(&default_iface);
+    // WiFi details need `iw`/`iwconfig` spawns; fast mode reports the IP only.
+    let (ssid, signal_percent, speed_mbps) = if fast {
+        (None, None, None)
+    } else {
+        read_wifi_info(&default_iface)
+    };
 
     Ok(NetworkInfo {
         interface: default_iface,
@@ -483,7 +488,7 @@ fn parse_wpctl_sink_state(state: &str) -> (Option<u8>, bool) {
     (volume, muted)
 }
 
-fn read_audio_info() -> Result<AudioInfo, ProviderError> {
+fn read_audio_info(fast: bool) -> Result<AudioInfo, ProviderError> {
     let runtime_dir = env::var_os("XDG_RUNTIME_DIR")
         .map(|v| v.to_string_lossy().to_string())
         .unwrap_or_default();
@@ -491,7 +496,11 @@ fn read_audio_info() -> Result<AudioInfo, ProviderError> {
     let pipewire_sock = Path::new(&runtime_dir).join("pipewire-0");
 
     if pipewire_sock.exists() {
-        let device = detect_pipewire_default_sink();
+        let device = if fast {
+            None
+        } else {
+            detect_pipewire_default_sink()
+        };
         return Ok(AudioInfo {
             backend: "PipeWire".to_string(),
             device: device.as_ref().map(|device| device.name.clone()),
@@ -501,7 +510,11 @@ fn read_audio_info() -> Result<AudioInfo, ProviderError> {
     }
 
     if pulse_sock.exists() {
-        let device = detect_pulse_default_sink();
+        let device = if fast {
+            None
+        } else {
+            detect_pulse_default_sink()
+        };
         return Ok(AudioInfo {
             backend: "PulseAudio".to_string(),
             device: device.as_ref().map(|device| device.name.clone()),
@@ -575,11 +588,11 @@ impl SystemProvider {
     }
 
     pub fn network_info(&self) -> Result<NetworkInfo, ProviderError> {
-        read_network_info()
+        read_network_info(self.fast)
     }
 
     pub fn audio_info(&self) -> Result<AudioInfo, ProviderError> {
-        read_audio_info()
+        read_audio_info(self.fast)
     }
 
     pub fn temperature_info(&self) -> Result<TemperatureInfo, ProviderError> {

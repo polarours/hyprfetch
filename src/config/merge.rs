@@ -95,6 +95,7 @@ pub fn merge(cli: &CliArgs, config: AppConfig) -> RuntimeConfig {
         // two-phase story. The renderer gates the rest off where animation
         // cannot run.
         animation: cli.animation.or(config.animation).unwrap_or_default(),
+        fast: cli.fast || config.fast,
         watch: cli.watch,
         watch_interval: cli.watch_interval,
     }
@@ -148,6 +149,7 @@ mod tests {
             print_config: false,
             no_config: false,
             plain: false,
+            fast: false,
             animation: None,
             share: false,
             watch: false,
@@ -173,6 +175,7 @@ mod tests {
                 appearance: super::super::AppearanceConfig::default(),
                 logo: super::super::LogoConfig::default(),
                 animation: None,
+                fast: false,
                 modules: vec![os],
                 plugins: Vec::new(),
             },
@@ -185,6 +188,50 @@ mod tests {
     }
 
     #[test]
+    fn fast_mode_is_enabled_by_cli_or_config() {
+        let mut cli = CliArgs {
+            config: None,
+            init_config: false,
+            print_config: false,
+            no_config: false,
+            plain: false,
+            fast: false,
+            animation: None,
+            share: false,
+            watch: false,
+            watch_interval: 1,
+            color: ColorMode::Auto,
+            modules: None,
+            theme: None,
+            style: None,
+            logo: None,
+            json: false,
+            diagnostics: false,
+            list_logos: false,
+            list_modules: false,
+            list_themes: false,
+        };
+        let config = AppConfig::default();
+
+        assert!(
+            !merge(&cli, config.clone()).fast,
+            "default must be normal mode"
+        );
+        cli.fast = true;
+        assert!(
+            merge(&cli, config.clone()).fast,
+            "cli --fast must enable it"
+        );
+        cli.fast = false;
+        let mut config_fast = config;
+        config_fast.fast = true;
+        assert!(
+            merge(&cli, config_fast).fast,
+            "config fast = true must enable it"
+        );
+    }
+
+    #[test]
     fn cli_plain_mode_overrides_config() {
         let cli = CliArgs {
             config: None,
@@ -192,6 +239,7 @@ mod tests {
             print_config: false,
             no_config: false,
             plain: true,
+            fast: false,
             animation: None,
             share: false,
             watch: false,
@@ -214,6 +262,7 @@ mod tests {
                 appearance: super::super::AppearanceConfig::default(),
                 logo: super::super::LogoConfig::default(),
                 animation: None,
+                fast: false,
                 modules: vec![super::super::ModuleConfig::from(ModuleId::Kernel)],
                 plugins: Vec::new(),
             },
@@ -242,6 +291,7 @@ mod tests {
             print_config: false,
             no_config: false,
             plain: false,
+            fast: false,
             animation: None,
             share: false,
             watch: false,
@@ -266,6 +316,7 @@ mod tests {
                 appearance: super::super::AppearanceConfig::default(),
                 logo: super::super::LogoConfig::default(),
                 animation: None,
+                fast: false,
                 modules: vec![disk],
                 plugins: Vec::new(),
             },
@@ -290,6 +341,7 @@ mod tests {
             print_config: false,
             no_config: false,
             plain: false,
+            fast: false,
             animation: None,
             share: false,
             watch: false,
@@ -313,6 +365,7 @@ mod tests {
                 appearance: super::super::AppearanceConfig::default(),
                 logo: super::super::LogoConfig::default(),
                 animation: None,
+                fast: false,
                 modules: vec![disk],
                 plugins: Vec::new(),
             },
@@ -336,6 +389,7 @@ mod tests {
             print_config: false,
             no_config: false,
             plain: false,
+            fast: false,
             animation: None,
             share: true,
             watch: false,
@@ -359,6 +413,7 @@ mod tests {
                 appearance: super::super::AppearanceConfig::default(),
                 logo: super::super::LogoConfig::default(),
                 animation: None,
+                fast: false,
                 modules: vec![disk],
                 plugins: Vec::new(),
             },
@@ -380,6 +435,7 @@ mod tests {
             print_config: false,
             no_config: false,
             plain: false,
+            fast: false,
             animation: None,
             share: true,
             watch: false,
@@ -403,6 +459,7 @@ mod tests {
                 appearance: super::super::AppearanceConfig::default(),
                 logo: super::super::LogoConfig::default(),
                 animation: None,
+                fast: false,
                 modules: Vec::new(),
                 plugins: Vec::new(),
             },

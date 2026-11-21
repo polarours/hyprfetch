@@ -118,6 +118,10 @@ fn program_in_path(program: &str) -> bool {
 
 impl SystemProvider {
     pub fn media_info(&self) -> Result<Vec<MediaPlayer>, ProviderError> {
+        if self.fast {
+            // MPRIS discovery needs a `playerctl` spawn; nothing to show fast.
+            return Err(ProviderError::not_found("media probe skipped in fast mode"));
+        }
         read_media_info()
     }
 }
