@@ -11,9 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - A clear [!IMPORTANT] notice at the top of the README states that 0.1.0 is an
   early, testing-stage release with no stability guarantees.
-- Concrete AUR publishing steps in the README packaging section (account, SSH
-  key, package repo clone, PKGBUILD + .SRCINFO, local validation, push), plus an
-  updated `contrib/PKGBUILD` placeholder version.
 
 ### Fixed
 

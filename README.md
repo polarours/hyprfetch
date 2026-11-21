@@ -432,29 +432,7 @@ cd contrib
 makepkg -si
 ```
 
-### Publishing to the AUR
-
-The package is not yet on the AUR; both `hyprfetch` and `hyprfetch-git` are free names.
-To publish the `-git` package:
-
-1. Create an [AUR account](https://aur.archlinux.org/register.php), add your SSH key,
-   and confirm both names are still unclaimed (`hyprfetch-git`, optionally `hyprfetch`).
-2. Clone the package repo:
-   ```bash
-   git clone ssh://aur@aur.archlinux.org/hyprfetch-git.git
-   ```
-3. Copy `contrib/PKGBUILD` and `.SRCINFO` into it. Generate `.SRCINFO` in the
-   packaging directory with `makepkg --printsrcinfo > .SRCINFO`.
-4. Verify a clean build locally: `makepkg -s` then `namcap PKGBUILD *.pkg.tar.zst`.
-5. Commit and push:
-   ```bash
-   git add PKGBUILD .SRCINFO && git commit -m 'Initial import' && git push
-   ```
-6. For versioned (non-git) releases later, publish a `hyprfetch` package that
-   sources the release tarball from the GitHub release and pins `sha256sums`.
-
-Keep the maintainer line, `pkgdesc`, `url` and the license field consistent with
-`Cargo.toml`, and bump `pkgrel` for every packaging-only change.
+Before submitting to the AUR, confirm the GitHub repository URL in `Cargo.toml` and `contrib/PKGBUILD`, then tag releases as `v0.1.0`, `v0.2.0`, and so on.
 
 ## Roadmap
 
