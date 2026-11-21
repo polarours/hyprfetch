@@ -30,6 +30,13 @@
   <p><sub>The reveal above is a real recording. Click for a full-resolution still.</sub></p>
 </div>
 
+> [!IMPORTANT]
+> **hyprfetch 0.1.0 is an early, testing-stage release — not yet a stable version.**
+> It is published on GitHub for feedback and real-world use, but the config format,
+> module IDs and output layout may still change between releases. Please report bugs
+> and rough edges through [GitHub Issues](https://github.com/polarours/hyprfetch/issues).
+> Pin a specific version if you depend on its exact output.
+
 ---
 
 ## Why hyprfetch
@@ -417,14 +424,37 @@ The release profile enables thin LTO and symbol stripping, producing a compact s
 
 ## Packaging
 
-An Arch packaging template lives at `contrib/PKGBUILD`:
+An Arch packaging template lives at `contrib/PKGBUILD` (package name `hyprfetch-git`,
+tracking the git `master` branch):
 
 ```bash
 cd contrib
 makepkg -si
 ```
 
-Before submitting to the AUR, confirm the GitHub repository URL in `Cargo.toml` and `contrib/PKGBUILD`, then tag releases as `v0.1.0`, `v0.2.0`, and so on.
+### Publishing to the AUR
+
+The package is not yet on the AUR; both `hyprfetch` and `hyprfetch-git` are free names.
+To publish the `-git` package:
+
+1. Create an [AUR account](https://aur.archlinux.org/register.php), add your SSH key,
+   and confirm both names are still unclaimed (`hyprfetch-git`, optionally `hyprfetch`).
+2. Clone the package repo:
+   ```bash
+   git clone ssh://aur@aur.archlinux.org/hyprfetch-git.git
+   ```
+3. Copy `contrib/PKGBUILD` and `.SRCINFO` into it. Generate `.SRCINFO` in the
+   packaging directory with `makepkg --printsrcinfo > .SRCINFO`.
+4. Verify a clean build locally: `makepkg -s` then `namcap PKGBUILD *.pkg.tar.zst`.
+5. Commit and push:
+   ```bash
+   git add PKGBUILD .SRCINFO && git commit -m 'Initial import' && git push
+   ```
+6. For versioned (non-git) releases later, publish a `hyprfetch` package that
+   sources the release tarball from the GitHub release and pins `sha256sums`.
+
+Keep the maintainer line, `pkgdesc`, `url` and the license field consistent with
+`Cargo.toml`, and bump `pkgrel` for every packaging-only change.
 
 ## Roadmap
 
