@@ -424,15 +424,21 @@ The release profile enables thin LTO and symbol stripping, producing a compact s
 
 ## Packaging
 
-An Arch packaging template lives at `contrib/PKGBUILD` (package name `hyprfetch-git`,
-tracking the git `master` branch):
+hyprfetch is published on the AUR as [**hyprfetch-git**](https://aur.archlinux.org/packages/hyprfetch-git),
+tracking the git `master` branch. Install it with any AUR helper:
+
+```bash
+yay -S hyprfetch-git
+# or
+paru -S hyprfetch-git
+```
+
+An Arch packaging template also lives at `contrib/PKGBUILD` for local builds:
 
 ```bash
 cd contrib
 makepkg -si
 ```
-
-Before submitting to the AUR, confirm the GitHub repository URL in `Cargo.toml` and `contrib/PKGBUILD`, then tag releases as `v0.1.0`, `v0.2.0`, and so on.
 
 ## Roadmap
 

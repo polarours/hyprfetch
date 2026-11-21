@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- hyprfetch is now on the AUR as `hyprfetch-git`; the README Packaging section
+  links the package and shows `yay -S` / `paru -S` install commands. The stale
+  "before submitting to the AUR" note is gone.
 - A clear [!IMPORTANT] notice at the top of the README states that 0.1.0 is an
   early, testing-stage release with no stability guarantees.
 
