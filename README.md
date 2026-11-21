@@ -23,9 +23,11 @@
     <a href="#development"><strong>Development</strong></a>
   </p>
 
-  <a href="assets/screenshots/preview.png">
-    <img src="assets/screenshots/preview.png" alt="hyprfetch on Arch Linux with Hyprland, kitty and the Hypr theme" width="100%" />
+  <!-- real screen recording of the reveal animation, captured from the binary in a PTY -->
+  <a href="assets/screenshots/preview.png" title="Open the full-resolution still">
+    <img src="assets/screenshots/demo.gif" alt="Animated hyprfetch reveal: the dot logo draws first, then the system and Hyprland rows fill in" width="100%" />
   </a>
+  <p><sub>The reveal above is a real recording. Click for a full-resolution still.</sub></p>
 </div>
 
 ---

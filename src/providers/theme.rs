@@ -1228,7 +1228,18 @@ gtk-font-name=Noto Sans,  10
     fn version_probing_is_opt_in() {
         // The default render never shows versions. Probing them costs a
         // command per backend (~100 ms), so the fast path must skip it.
-        let processes = vec![running("swaync", "/usr/bin/swaync")];
+        // Use a fake backend binary so the test does not depend on which
+        // daemons happen to be installed on the machine running the tests.
+        let dir = tempfile::tempdir().unwrap();
+        let fake = dir.path().join("swaync");
+        std::fs::write(&fake, "#!/bin/sh\necho 'swaync 1.2.3'\n").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o755)).unwrap();
+        }
+        let fake = fake.to_str().unwrap();
+        let processes = vec![running("swaync", fake)];
 
         let plain = detect_ecosystem_info(&processes, false);
         assert_eq!(
@@ -1245,8 +1256,9 @@ gtk-font-name=Noto Sans,  10
         );
 
         let detailed = detect_ecosystem_info(&processes, true);
-        assert!(
-            detailed.notifications.unwrap().1.is_some(),
+        assert_eq!(
+            detailed.notifications.unwrap().1.as_deref(),
+            Some("1.2.3"),
             "explicit requests still get probed versions"
         );
     }
