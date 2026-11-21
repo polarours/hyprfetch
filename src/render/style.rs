@@ -31,7 +31,7 @@ fn key_accent(key: &str) -> Option<usize> {
         "Network" | "Temperature" | "Audio" => Some(4),
         "Hyprland" | "Workspace" | "Clients" | "Focused" => Some(5),
         "Session" | "Window" | "Workspaces" | "Monitors" => Some(6),
-        "Theme" | "Ecosystem" | "Input" | "Colors" => Some(7),
+        "Theme" | "Wallpaper" | "Ecosystem" | "Input" | "Colors" => Some(7),
         _ => None,
     }
 }
@@ -196,7 +196,7 @@ pub(super) fn style_logo(
 mod tests {
     use unicode_width::UnicodeWidthStr;
 
-    use super::{METER_WIDTH, color_bar, style_meter};
+    use super::{METER_WIDTH, color_bar, key_accent, style_key, style_meter};
     use crate::model::PaletteName;
 
     /// Visible width of a string after removing SGR escape sequences.
@@ -246,6 +246,30 @@ mod tests {
         assert_eq!(color_of(&padded), color_of(&plain));
         let muted = style_key(" SomeUnknownKey", PaletteName::Hypr, true);
         assert_ne!(color_of(&padded), color_of(&muted));
+    }
+
+    #[test]
+    fn theme_rows_share_one_accent_group() {
+        // These four rows come from the theme/ecosystem modules and are
+        // grouped visually in the screenshot; Wallpaper was missing from the
+        // mapping and fell through to the muted gray.
+        for key in ["Theme", "Wallpaper", "Ecosystem", "Input"] {
+            assert_eq!(
+                key_accent(key),
+                Some(7),
+                "{key} must share the theme accent"
+            );
+            assert_eq!(key_accent(&format!("{key}:")), Some(7));
+        }
+        // The style path resolves the same index for every grouped key, in
+        // every palette (all palettes carry eight accents).
+        for &palette in crate::theme::PaletteName::all() {
+            let styled = style_key("Wallpaper", palette, true);
+            assert!(
+                styled.starts_with("\x1b["),
+                "wallpaper must be colored in {palette:?}"
+            );
+        }
     }
 
     #[test]

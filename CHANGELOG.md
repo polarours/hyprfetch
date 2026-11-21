@@ -37,6 +37,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The `Wallpaper` key was missing from the theme-row color group, so it rendered
+  in the muted gray while Theme/Ecosystem/Input shared a colored accent. It now
+  shares that accent; a regression test locks all four keys together across
+  every palette.
+
 - NetworkManager is detected again: the process list carries lowercased names and a root
   daemon offers no readable executable, so the name comparison is now case-insensitive (it
   reported `iwd` on a machine running both).
