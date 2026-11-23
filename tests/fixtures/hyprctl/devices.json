@@ -1,0 +1,32 @@
+{
+  "mice": [
+    {
+      "name": "Logitech G Pro Wireless"
+    }
+  ],
+  "keyboards": [
+    {
+      "name": "Keychron Q1",
+      "main": true,
+      "layout": "us",
+      "active_keymap": "English (US)"
+    },
+    {
+      "name": "AT Translated Set 2 keyboard",
+      "main": false,
+      "layout": "us",
+      "active_keymap": "English (US)"
+    }
+  ],
+  "tablets": [],
+  "touch": [
+    {
+      "name": "Wacom One Pen Display 13 touch"
+    }
+  ],
+  "switches": [
+    {
+      "name": "Lid Switch"
+    }
+  ]
+}
