@@ -1,0 +1,30 @@
+[
+  {
+    "name": "DP-1",
+    "description": "Dell Inc. AW2721D",
+    "width": 2560,
+    "height": 1440,
+    "refreshRate": 165.0,
+    "scale": 1.0,
+    "focused": true,
+    "activeWorkspace": {
+      "id": 1,
+      "name": "1"
+    },
+    "dpmsStatus": true
+  },
+  {
+    "name": "HDMI-A-1",
+    "description": "LG Electronics LG ULTRAGEAR",
+    "width": 1920,
+    "height": 1080,
+    "refreshRate": 60.0,
+    "scale": 1.0,
+    "focused": false,
+    "activeWorkspace": {
+      "id": 2,
+      "name": "2"
+    },
+    "dpmsStatus": false
+  }
+]

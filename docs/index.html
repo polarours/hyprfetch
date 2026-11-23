@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>hyprfetch — a Hyprland-native fetch utility</title>
+<meta name="description" content="Hyprland-native fetch utility for rice screenshots — live workspace, window and monitor state, theme/ecosystem awareness, 18 palettes and 430 logos." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    /* Tokyo Night — hyprfetch's own default palette (src/theme.rs) */
+    --bg:        #1a1b26;
+    --bg-2:      #161722;
+    --panel:     #1f2130;
+    --border:    #2a2d42;
+    --fg:        #c0caf5;
+    --muted:     #7a83ad;
+    --body:      #a8b2dc;
+    --blue:      #7aa2f7;
+    --cyan:      #7dcfff;
+    --green:     #9ece6a;
+    --purple:    #bb9af7;
+    --orange:    #e0af68;
+    --pink:      #f7768e;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --display: "Space Grotesk", system-ui, sans-serif;
+    --maxw: 1040px;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background:
+      radial-gradient(900px 500px at 78% -8%, rgba(122,162,247,.10), transparent 60%),
+      radial-gradient(700px 420px at 4% 24%, rgba(187,154,247,.07), transparent 60%),
+      var(--bg);
+    color: var(--fg);
+    font-family: var(--display);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a { color: var(--blue); text-decoration: none; }
+  a:hover { color: var(--cyan); }
+  :focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; border-radius: 3px; }
+
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+
+  /* ---- nav: a shell prompt line ---- */
+  header { border-bottom: 1px solid var(--border); background: rgba(22,23,34,.72); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 20; }
+  .nav { display: flex; align-items: center; gap: 26px; height: 58px; font-family: var(--mono); font-size: 14px; }
+  .nav .prompt { color: var(--green); font-weight: 700; }
+  .nav .user { color: var(--muted); }
+  .nav .cmd { color: var(--fg); }
+  .nav .links { margin-left: auto; display: flex; gap: 22px; }
+  .nav .links a { color: var(--muted); }
+  .nav .links a:hover { color: var(--blue); }
+  .nav .links a.strong { color: var(--blue); font-weight: 700; }
+
+  /* ---- hero ---- */
+  .hero { padding: 54px 0 34px; text-align: center; }
+  .hero img.wordmark { width: min(430px, 86vw); height: auto; display: block; margin: 0 auto 24px; }
+  .tagline { font-family: var(--mono); color: var(--muted); font-size: clamp(13px, 1.7vw, 16px); margin: 0 auto 8px; }
+  .tagline b { color: var(--cyan); font-weight: 500; }
+  .sub { color: var(--body); font-size: 17px; max-width: 640px; margin: 14px auto 30px; text-wrap: balance; }
+  .cta { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+  .btn {
+    font-family: var(--mono); font-size: 14px; font-weight: 500;
+    padding: 13px 22px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--panel); color: var(--fg); cursor: pointer; transition: .18s ease;
+  }
+  .btn:hover { border-color: var(--blue); color: var(--blue); transform: translateY(-1px); }
+  .btn.primary { background: var(--blue); color: var(--bg); border-color: var(--blue); font-weight: 700; }
+  .btn.primary:hover { background: var(--cyan); border-color: var(--cyan); color: var(--bg); }
+
+  /* ---- terminal window (signature) ---- */
+  .stage { padding: 30px 0 70px; }
+  .terminal {
+    max-width: 940px; margin: 0 auto; border: 1px solid var(--border);
+    border-radius: 12px; overflow: hidden; background: var(--bg-2);
+    box-shadow: 0 30px 80px -30px rgba(122,162,247,.28), 0 0 0 1px rgba(122,162,247,.05);
+    animation: rise .7s cubic-bezier(.2,.8,.2,1) both;
+  }
+  .terminal .bar {
+    height: 40px; display: flex; align-items: center; gap: 8px; padding: 0 16px;
+    background: #1e2030; border-bottom: 1px solid var(--border);
+    font-family: var(--mono); font-size: 12px; color: var(--muted);
+  }
+  .terminal .prompt { color: var(--green); font-weight: 700; }
+  .terminal .flag { color: var(--purple); }
+  .terminal .path { font-size: 13px; color: var(--fg); }
+  .terminal .live { margin-left: auto; color: var(--green); display: flex; align-items: center; gap: 7px; }
+  .terminal .live i { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 10px var(--green); animation: pulse 2s infinite; }
+  .terminal img { display: block; width: 100%; height: auto; }
+  @media (max-width: 700px) { .terminal img { width: 700px; max-width: none; } .terminal { overflow-x: auto; } }
+  @keyframes rise { from { opacity: 0; transform: translateY(20px) scale(.985); } to { opacity: 1; transform: none; } }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+
+  /* ---- section scaffolding: eyebrow is a shell command ---- */
+  section { padding: 56px 0; border-top: 1px solid var(--border); }
+  .eyebrow { font-family: var(--mono); font-size: 13px; color: var(--green); margin: 0 0 6px; }
+  .eyebrow::before { content: "❯ "; color: var(--purple); }
+  h2 { font-family: var(--display); font-size: clamp(26px, 4vw, 38px); margin: 0 0 10px; letter-spacing: -.02em; font-weight: 700; }
+  .lead { color: var(--body); max-width: 680px; margin: 0 0 34px; font-size: 16px; text-wrap: pretty; }
+
+  /* ---- features ---- */
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 26px 24px 28px; transition: .18s ease;
+  }
+  .card:hover { border-color: var(--border); transform: translateY(-3px); box-shadow: 0 16px 40px -24px rgba(122,162,247,.4); }
+  .card .ic { font-family: var(--mono); font-size: 13px; font-weight: 700; margin-bottom: 14px; }
+  .card h3 { margin: 0 0 8px; font-size: 19px; }
+  .card p { margin: 0; color: var(--body); font-size: 14px; }
+  .c1 .ic { color: var(--blue); } .c2 .ic { color: var(--cyan); } .c3 .ic { color: var(--pink); }
+
+  /* ---- themes ---- */
+  .themes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .theme { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--bg-2); }
+  .theme .label {
+    font-family: var(--mono); font-size: 12px; padding: 10px 14px;
+    border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; color: var(--muted);
+  }
+  .theme .label b { color: var(--fg); font-weight: 500; }
+  .theme img { display: block; width: 100%; height: auto; }
+  .swatch { display: inline-block; width: 9px; height: 9px; border-radius: 2px; }
+
+  /* ---- install ---- */
+  .codebox { position: relative; background: var(--bg-2); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; margin-bottom: 12px; font-family: var(--mono); font-size: 14px; display: flex; align-items: center; gap: 14px; }
+  .codebox .dollar { color: var(--green); font-weight: 700; }
+  .codebox code { color: var(--fg); white-space: nowrap; overflow-x: auto; }
+  .codebox button { margin-left: auto; flex: none; font-family: var(--mono); font-size: 11px; padding: 6px 11px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel); color: var(--muted); cursor: pointer; }
+  .codebox button:hover { color: var(--blue); border-color: var(--blue); }
+  .codebox button.done { color: var(--green); border-color: var(--green); }
+
+  /* ---- footer ---- */
+  footer { border-top: 1px solid var(--border); padding: 34px 0 54px; color: var(--muted); font-family: var(--mono); font-size: 13px; }
+  .foot { display: flex; gap: 20px; flex-wrap: wrap; align-items: center; }
+  .foot .end { margin-left: auto; color: var(--purple); }
+
+  /* ---- responsive ---- */
+  @media (max-width: 1000px) {
+    .themes { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 820px) {
+    .grid3, .themes { grid-template-columns: 1fr; }
+    .nav .links { gap: 14px; }
+    .nav .links a:not(.strong) { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; scroll-behavior: auto; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <span class="prompt">❯</span>
+    <span class="user">hyprfetch</span>
+    <span class="cmd">--about</span>
+    <span class="links">
+      <a href="#features">features</a>
+      <a href="#themes">themes</a>
+      <a href="#install">install</a>
+      <a class="strong" href="https://github.com/polarours/hyprfetch">GitHub ↗</a>
+    </span>
+  </div>
+</header>
+
+<main>
+  <div class="wrap hero">
+    <img class="wordmark" src="assets/hyprfetch-wordmark.svg" alt="hyprfetch" />
+    <p class="tagline">a <b>Hyprland-native</b> fetch utility</p>
+    <p class="sub">Live workspace, window and monitor state — plus the theme, wallpaper and daemons behind your rice. Rendered in ~50&nbsp;ms.</p>
+    <div class="cta">
+      <a class="btn primary" href="#install">yay -S hyprfetch-git</a>
+      <a class="btn" href="https://github.com/polarours/hyprfetch">View on GitHub</a>
+    </div>
+  </div>
+
+  <div class="wrap stage">
+    <div class="terminal">
+      <div class="bar">
+        <span class="path"><span class="prompt">❯</span> hyprfetch <span class="flag">--animation wave</span></span>
+        <span class="live"><i></i> live output</span>
+      </div>
+      <img src="assets/demo.gif" alt="Animated hyprfetch output: the distro logo draws first in pixel blocks, then system and Hyprland rows fill in" />
+    </div>
+  </div>
+
+  <section id="features">
+    <div class="wrap">
+      <p class="eyebrow">what it shows</p>
+      <h2>More than hardware.</h2>
+      <p class="lead">Generic fetch tools list your CPU and kernel. hyprfetch also reads the compositor and the desktop you actually built.</p>
+      <div class="grid3">
+        <div class="card c1">
+          <div class="ic">01 / SESSION</div>
+          <h3>Live Hyprland state</h3>
+          <p>Workspace, clients, focused output, active window, monitors, keybinds and layer-shell surfaces — updated at the moment you run it.</p>
+        </div>
+        <div class="card c2">
+          <div class="ic">02 / RICE</div>
+          <h3>Knows your setup</h3>
+          <p>GTK theme, icons, cursor, font and wallpaper backend, plus twenty daemon categories from your bar and launcher to night light.</p>
+        </div>
+        <div class="card c3">
+          <div class="ic">03 / PRESENTATION</div>
+          <h3>Made for screenshots</h3>
+          <p>Distro logos in solid pixel blocks, 18 palettes, usage bars and a four-style reveal animation. Width-aware layout that degrades gracefully.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="themes">
+    <div class="wrap">
+      <p class="eyebrow">--list-themes</p>
+      <h2>Seventeen palettes. One binary.</h2>
+      <p class="lead">Every palette is verified against the theme's own source and colors the keys, title, logo, bars and values together. Pick one by name.</p>
+      <div class="themes">
+        <div class="theme">
+          <div class="label"><span class="swatch" style="background:#7aa2f7"></span><b>hypr</b> · Tokyo Night</div>
+          <a href="assets/theme-hypr.png"><img src="assets/theme-hypr.png" alt="hypr theme" /></a>
+        </div>
+        <div class="theme">
+          <div class="label"><span class="swatch" style="background:#a6e3a1"></span><b>catppuccin</b> · Mocha</div>
+          <a href="assets/theme-catppuccin.png"><img src="assets/theme-catppuccin.png" alt="catppuccin theme" /></a>
+        </div>
+        <div class="theme">
+          <div class="label"><span class="swatch" style="background:#e0af68"></span><b>gruvbox</b> · dark</div>
+          <a href="assets/theme-gruvbox.png"><img src="assets/theme-gruvbox.png" alt="gruvbox theme" /></a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="install">
+    <div class="wrap">
+      <p class="eyebrow">getting started</p>
+      <h2>Install in one line.</h2>
+      <p class="lead">Available on the AUR, or build from source with Cargo.</p>
+      <div class="codebox"><span class="dollar">$</span><code>yay -S hyprfetch-git</code><button data-copy="yay -S hyprfetch-git">copy</button></div>
+      <div class="codebox"><span class="dollar">$</span><code>cargo install --path . --locked</code><button data-copy="cargo install --path . --locked">copy</button></div>
+      <p class="lead" style="margin-top:22px">Then just run <code style="font-family:var(--mono);color:var(--cyan)">hyprfetch</code>. Need it faster? <code style="font-family:var(--mono);color:var(--cyan)">hyprfetch --fast</code> skips the expensive probes.</p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <span>hyprfetch · GPL-3.0</span>
+    <a href="https://aur.archlinux.org/packages/hyprfetch-git">AUR ↗</a>
+    <a href="https://github.com/polarours/hyprfetch/releases">releases ↗</a>
+    <span class="end">❯ made for the terminal</span>
+  </div>
+</footer>
+
+<script>
+  document.querySelectorAll('button[data-copy]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      navigator.clipboard.writeText(b.dataset.copy).then(function () {
+        b.textContent = 'copied'; b.classList.add('done');
+        setTimeout(function () { b.textContent = 'copy'; b.classList.remove('done'); }, 1600);
+      });
+    });
+  });
+</script>
+</body>
+</html>

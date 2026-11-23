@@ -1,0 +1,63 @@
+[
+  {
+    "locked": false,
+    "mouse": false,
+    "release": false,
+    "repeat": false,
+    "nonConsuming": false,
+    "hasDescription": true,
+    "description": "Open terminal",
+    "modmask": 64,
+    "submap": "",
+    "key": "Return",
+    "keycode": 0,
+    "catchAll": false,
+    "dispatcher": "exec",
+    "arg": "kitty"
+  },
+  {
+    "locked": false,
+    "mouse": false,
+    "release": false,
+    "repeat": true,
+    "nonConsuming": false,
+    "hasDescription": false,
+    "modmask": 64,
+    "submap": "",
+    "key": "H",
+    "keycode": 0,
+    "catchAll": false,
+    "dispatcher": "movefocus",
+    "arg": "l"
+  },
+  {
+    "locked": false,
+    "mouse": true,
+    "release": false,
+    "repeat": false,
+    "nonConsuming": false,
+    "hasDescription": false,
+    "modmask": 64,
+    "submap": "",
+    "key": "mouse:272",
+    "keycode": 0,
+    "catchAll": false,
+    "dispatcher": "movewindow",
+    "arg": ""
+  },
+  {
+    "locked": false,
+    "mouse": false,
+    "release": false,
+    "repeat": false,
+    "nonConsuming": false,
+    "hasDescription": false,
+    "modmask": 64,
+    "submap": "resize",
+    "key": "Escape",
+    "keycode": 0,
+    "catchAll": false,
+    "dispatcher": "submap",
+    "arg": "reset"
+  }
+]
