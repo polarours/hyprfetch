@@ -59,7 +59,7 @@ impl Default for AppConfig {
             icons: false,
             custom_logo: None,
             logo_image: None,
-            logo_image_cols: 30,
+            logo_image_cols: 0,
             modules: ModuleId::default_order()
                 .iter()
                 .copied()

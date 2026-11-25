@@ -101,17 +101,34 @@ fn render_image_logo(
     }
     let png = logo_image::load_png(path)?;
     let dimensions = logo_image::png_dimensions(&png)?;
-    let cols = runtime.logo_image_cols.max(1);
-    let rows = logo_image::image_rows(cols, dimensions);
 
+    let terminal_cols = detect_terminal_width().unwrap_or(120);
     let lines = layout::render_rows_only(outputs, runtime, detect_terminal_width());
     if lines.is_empty() {
         return None;
     }
 
+    // Fill the height of the information block: a zero `logo_image_cols` means
+    // "derive the width from the row count", capped at half the terminal. Half
+    // rather than a third, because a square picture sized to a 40-row block is
+    // 80 columns wide — a third would cap it short and leave the block empty
+    // below the logo. An explicit value is used as-is, which is what a user
+    // reaching for the flag wants.
+    let max_cols = if runtime.logo_image_cols == 0 {
+        (terminal_cols / 2).max(10) as u32
+    } else {
+        runtime.logo_image_cols
+    };
+    let target_rows = lines.len().max(1) as u32;
+    let cols = logo_image::fit_cols(target_rows, dimensions, max_cols);
+    let rows = logo_image::fit_rows(cols, dimensions, target_rows);
+
+    // Scale the pixels to the box: the protocol's c/r only moves the cursor.
+    let scaled = logo_image::scale_to_box(&png, cols, rows, logo_image::cell_pixels());
+
     let text_col = cols + 2;
     let mut rendered = String::from("\x1b[H");
-    rendered.push_str(&logo_image::apc(&png, cols, rows));
+    rendered.push_str(&logo_image::apc(&scaled, cols, rows));
     for (index, line) in lines.iter().enumerate() {
         rendered.push_str(&format!("\x1b[{};{}H{}", index + 1, text_col, line));
     }

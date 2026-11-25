@@ -10,10 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `--logo-image PATH` (`logo_image` in the config, `--logo-image-cols` for the
-  width): draws a PNG as the logo using the kitty graphics protocol, which
-  kitty, ghostty and WezTerm implement. The rows are positioned beside the
-  picture with absolute cursor moves, and the arcade view switches off —
-  a picture and a HUD cannot share the same space.
+  width ceiling): draws a PNG as the logo using the kitty graphics protocol,
+  which kitty, ghostty and WezTerm implement. The picture is scaled to the pixel
+  size of the cell box it occupies — the protocol's own `c`/`r` only move the
+  cursor, they do not resize the image — and sized so it fills the height of the
+  information block, capped at half the terminal. The rows are positioned beside
+  it with absolute cursor moves, and the arcade view switches off: a picture and
+  a HUD cannot share the same space.
   Anything unusable (no protocol support, missing file, non-PNG, over 8 MB)
   falls back to the text logo instead of printing raw escapes, and the payload
   is never emitted when stdout is not a terminal.

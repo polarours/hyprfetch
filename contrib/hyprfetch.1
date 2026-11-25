@@ -63,7 +63,10 @@ view is turned off for that run. Where the protocol is unavailable, or the file
 is missing, is not a PNG, or exceeds 8 MB, the text logo is used instead.
 .TP
 .BI \-\-logo\-image\-cols " n"
-How many terminal cells wide the image is drawn. Defaults to 30.
+The widest the image may be drawn, in terminal cells. The default of 0 derives
+the width from the number of information rows, so a square picture fills the
+height of the text block, capped at half the terminal. A non-zero value is used
+as the ceiling and the picture keeps its aspect ratio inside it.
 .TP
 .B \-\-icons
 Prefix every row with a Nerd Font glyph while keeping the text label, for

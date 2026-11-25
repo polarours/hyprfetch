@@ -70,6 +70,77 @@ pub fn image_rows(cols: u32, dimensions: (u32, u32)) -> u32 {
     rows.clamp(1.0, 200.0) as u32
 }
 
+/// How wide to draw the picture for a block of `target_rows` text rows.
+///
+/// The aim is a logo that fills the height of the information block, the way a
+/// fetch screenshot is usually composed: the width follows from the aspect
+/// ratio, then a hard ceiling keeps a very tall image from pushing the rows off
+/// the screen.
+pub fn fit_cols(target_rows: u32, dimensions: (u32, u32), max_cols: u32) -> u32 {
+    let (width, height) = dimensions;
+    let ideal = f64::from(target_rows.max(1)) * CELL_ASPECT * f64::from(width) / f64::from(height);
+    (ideal.round() as u32).clamp(1, max_cols.max(1))
+}
+
+/// The rows the picture really occupies once `fit_cols` has settled its width.
+///
+/// A wide image cannot fill the block without exceeding the width ceiling, so
+/// it ends up shorter than the text; this reports that honest height instead of
+/// stretching the picture to fit.
+pub fn fit_rows(cols: u32, dimensions: (u32, u32), target_rows: u32) -> u32 {
+    let proportional = image_rows(cols, dimensions);
+    proportional.min(target_rows.max(1))
+}
+
+/// The pixel size of one terminal cell, from the tty's winsize.
+///
+/// `ws_xpixel`/`ws_ypixel` are only filled in by terminals that report them;
+/// without them the picture cannot be scaled exactly and the caller keeps the
+/// original pixels.
+pub fn cell_pixels() -> Option<(u32, u32)> {
+    let mut size: libc::winsize = unsafe { std::mem::zeroed() };
+    // SAFETY: TIOCGWINSZ fills the struct we own; STDOUT_FILENO is always valid.
+    let result = unsafe { libc::ioctl(libc::STDOUT_FILENO, libc::TIOCGWINSZ, &mut size) };
+    if result != 0 || size.ws_col == 0 || size.ws_row == 0 {
+        return None;
+    }
+    if size.ws_xpixel == 0 || size.ws_ypixel == 0 {
+        return None;
+    }
+    let width = u32::from(size.ws_xpixel) / u32::from(size.ws_col);
+    let height = u32::from(size.ws_ypixel) / u32::from(size.ws_row);
+    (width > 0 && height > 0).then_some((width, height))
+}
+
+/// Re-encode the PNG at exactly the pixel size a `cols` x `rows` box holds.
+///
+/// The kitty protocol's `c`/`r` parameters only tell the terminal how far the
+/// cursor should move; the pixels are displayed as-is, so matching the box has
+/// to happen here. When the cell size is unknown the original bytes are used.
+pub fn scale_to_box(png: &[u8], cols: u32, rows: u32, cell: Option<(u32, u32)>) -> Vec<u8> {
+    let Some((cell_width, cell_height)) = cell else {
+        return png.to_vec();
+    };
+    let target_width = cols.saturating_mul(cell_width).max(1);
+    let target_height = rows.saturating_mul(cell_height).max(1);
+    let Ok(image) = image::load_from_memory_with_format(png, image::ImageFormat::Png) else {
+        return png.to_vec();
+    };
+    let resized = image.resize_exact(
+        target_width,
+        target_height,
+        image::imageops::FilterType::Triangle,
+    );
+    let mut encoded = std::io::Cursor::new(Vec::new());
+    if resized
+        .write_to(&mut encoded, image::ImageFormat::Png)
+        .is_err()
+    {
+        return png.to_vec();
+    }
+    encoded.into_inner()
+}
+
 /// Build the APC sequence that transmits and displays the image.
 pub fn apc(png: &[u8], cols: u32, rows: u32) -> String {
     let encoded = base64_encode(png);
@@ -120,7 +191,10 @@ pub fn base64_encode(input: &[u8]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{apc, base64_encode, image_rows, png_dimensions, supports_graphics};
+    use super::{
+        apc, base64_encode, fit_cols, fit_rows, image_rows, png_dimensions, scale_to_box,
+        supports_graphics,
+    };
 
     fn tiny_png() -> Vec<u8> {
         // A 1x1 PNG: signature, IHDR (width=1, height=1), rest can be minimal.
@@ -156,6 +230,65 @@ mod tests {
         assert_eq!(image_rows(30, (500, 1000)), 30);
         // Never zero, never absurd.
         assert_eq!(image_rows(1, (1000, 1)), 1);
+    }
+
+    #[test]
+    fn a_tall_image_fills_the_text_block() {
+        // Square image, 40 text rows, generous ceiling: 80x40 fills the block.
+        assert_eq!(fit_cols(40, (512, 512), 83), 80);
+        assert_eq!(fit_rows(80, (512, 512), 40), 40);
+    }
+
+    #[test]
+    fn a_wide_image_is_capped_and_shorter_than_the_text() {
+        // 2:1 image wants 160 columns for 40 rows; capped at 83 it is only 21 rows.
+        assert_eq!(fit_cols(40, (1000, 500), 83), 83);
+        assert_eq!(fit_rows(83, (1000, 500), 40), 21);
+    }
+
+    #[test]
+    fn fitting_never_returns_zero() {
+        assert_eq!(fit_cols(0, (1, 1), 0), 1);
+        assert_eq!(fit_rows(1, (1000, 1), 0), 1);
+    }
+
+    /// A real 1x1 PNG encoded by the image crate, so the scaler has something
+    /// valid to decode.
+    fn sample_png() -> Vec<u8> {
+        let image = image::RgbaImage::from_pixel(1, 1, image::Rgba([255, 0, 0, 255]));
+        let mut buffer = std::io::Cursor::new(Vec::new());
+        image::DynamicImage::ImageRgba8(image)
+            .write_to(&mut buffer, image::ImageFormat::Png)
+            .expect("encode sample png");
+        buffer.into_inner()
+    }
+
+    #[test]
+    fn scaling_lands_exactly_on_the_cell_box() {
+        let png = sample_png();
+        assert_eq!(png_dimensions(&png), Some((1, 1)));
+
+        // 10 columns x 5 rows of 8x16 px cells -> 80x80 px.
+        let scaled = scale_to_box(&png, 10, 5, Some((8, 16)));
+        assert_eq!(png_dimensions(&scaled), Some((80, 80)));
+
+        // 40 rows x 80 cols of 10x20 cells -> 800x800 px.
+        let scaled = scale_to_box(&sample_png(), 80, 40, Some((10, 20)));
+        assert_eq!(png_dimensions(&scaled), Some((800, 800)));
+    }
+
+    #[test]
+    fn scaling_is_skipped_without_cell_metrics() {
+        let png = sample_png();
+        let scaled = scale_to_box(&png, 10, 5, None);
+        assert_eq!(png_dimensions(&scaled), Some((1, 1)));
+    }
+
+    #[test]
+    fn scaling_falls_back_when_the_payload_is_not_a_png() {
+        let garbage = b"definitely not a png".to_vec();
+        let scaled = scale_to_box(&garbage, 10, 5, Some((8, 16)));
+        assert_eq!(scaled, garbage);
     }
 
     #[test]

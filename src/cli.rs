@@ -61,8 +61,9 @@ pub struct CliArgs {
     /// WezTerm). Implies the plain column layout instead of the arcade view.
     #[arg(long, value_name = "PATH")]
     pub logo_image: Option<PathBuf>,
-    /// Width of that image in terminal cells.
-    #[arg(long, value_name = "COLS", default_value_t = 30)]
+    /// Maximum width of that image in terminal cells. 0 derives it from the
+    /// number of information rows, so the picture fills the text block.
+    #[arg(long, value_name = "COLS", default_value_t = 0)]
     pub logo_image_cols: u32,
     #[arg(long)]
     pub json: bool,
