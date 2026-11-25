@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The default config now ships 21 curated modules instead of all 46. The
+  previous file enabled every Hyprland diagnostic (health, rules, binds,
+  shortcuts, layers, ecosystem, …), which produced a 57-row wall of text where
+  a screenshot wants one glance. Output is now ~30 rows; the full set is
+  `--preset all` and the diagnostics are also reachable per module.
+- `Preset::Rice` is now the shipped default and is kept in step with it, so
+  `--init-config` and a config-less run produce the same thing.
 ### Added
 
 - `--logo-image PATH` (`logo_image` in the config, `--logo-image-cols` for the

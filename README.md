@@ -410,6 +410,19 @@ timeout_ms = 1000
 
 A plugin that fails or times out keeps its reason in the output, so a broken plugin is never mistaken for one that produced no rows.
 
+## Defaults
+
+The shipped default is a curated 21-module set — identity, hardware, session
+and the Hyprland headline (version, workspaces, theme, wallpaper) — which lands
+around 30 rows, the length of a screenshot. Everything else is diagnostics and
+is one flag away:
+
+```bash
+hyprfetch --preset all       # every module, 46 of them
+hyprfetch --preset minimal   # 7 rows
+hyprfetch -m os,cpu,gpu,hypr-rules,hypr-binds   # pick your own
+```
+
 ## Module IDs
 
 | Group | Modules |

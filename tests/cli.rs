@@ -590,8 +590,13 @@ fn theme_file_overrides_look_but_not_modules() {
         .stdout
         .clone();
     let json: serde_json::Value = serde_json::from_slice(&output).unwrap();
-    // module set unchanged (not taken from the theme file)
-    assert!(json.as_array().unwrap().len() >= 30);
+    // The module set is unchanged by the theme file: still the curated default
+    // (a theme file carries looks, never module lists).
+    let count = json.as_array().unwrap().len();
+    assert!(
+        (18..=24).contains(&count),
+        "expected the curated default module set, got {count}"
+    );
 }
 
 #[test]

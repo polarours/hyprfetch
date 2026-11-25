@@ -60,9 +60,11 @@ impl Default for AppConfig {
             custom_logo: None,
             logo_image: None,
             logo_image_cols: 0,
-            modules: ModuleId::default_order()
-                .iter()
-                .copied()
+            // The default is the curated screenshot set; every other module is
+            // reachable through --preset all or the config file.
+            modules: crate::config::Preset::Rice
+                .modules()
+                .into_iter()
                 .map(ModuleConfig::from)
                 .collect(),
             plugins: Vec::new(),

@@ -23,23 +23,30 @@ impl Preset {
     pub fn modules(self) -> Vec<ModuleId> {
         match self {
             Preset::All => ModuleId::default_order().to_vec(),
+            // Kept in step with the shipped default config: a screenshot reads
+            // in one glance, and the diagnostics are one --preset all away.
             Preset::Rice => vec![
                 ModuleId::Os,
                 ModuleId::Host,
+                ModuleId::Bios,
+                ModuleId::Board,
                 ModuleId::Kernel,
+                ModuleId::InitSystem,
                 ModuleId::Uptime,
+                ModuleId::Packages,
+                ModuleId::Shell,
+                ModuleId::Terminal,
                 ModuleId::Cpu,
                 ModuleId::Gpu,
                 ModuleId::Memory,
                 ModuleId::Disk,
+                ModuleId::Battery,
+                ModuleId::Network,
+                ModuleId::Datetime,
+                ModuleId::Hyprland,
+                ModuleId::HyprWorkspaces,
                 ModuleId::Theme,
                 ModuleId::Wallpaper,
-                ModuleId::Hyprland,
-                ModuleId::HyprEcosystem,
-                ModuleId::HyprWorkspaces,
-                ModuleId::HyprActiveWindow,
-                ModuleId::HyprMonitors,
-                ModuleId::HyprDevices,
             ],
             Preset::Minimal => vec![
                 ModuleId::Os,
@@ -91,13 +98,32 @@ mod tests {
         assert_eq!(Preset::All.modules(), ModuleId::default_order());
     }
 
+    /// The shipped default and the Rice preset must not drift apart.
+    #[test]
+    fn the_default_config_is_the_rice_preset() {
+        let config = AppConfig::default();
+        let configured: Vec<ModuleId> = config.modules.iter().map(|m| m.name).collect();
+        assert_eq!(configured, Preset::Rice.modules());
+    }
+
+    #[test]
+    fn rice_stays_short_enough_for_one_screen() {
+        assert!(
+            Preset::Rice.modules().len() <= 22,
+            "the screenshot preset must stay glanceable"
+        );
+    }
+
     #[test]
     fn rice_and_minimal_are_distinct_subsets() {
         let rice = Preset::Rice.modules();
         let minimal = Preset::Minimal.modules();
         assert!(rice.len() > minimal.len());
         assert!(rice.contains(&ModuleId::Wallpaper));
-        assert!(rice.contains(&ModuleId::HyprEcosystem));
+        assert!(rice.contains(&ModuleId::HyprWorkspaces));
+        // The diagnostics belong to the full preset, not the screenshot one.
+        assert!(!rice.contains(&ModuleId::HyprRules));
+        assert!(!rice.contains(&ModuleId::HyprBinds));
         assert!(!minimal.contains(&ModuleId::Wallpaper));
         assert!(minimal.contains(&ModuleId::Cpu));
     }

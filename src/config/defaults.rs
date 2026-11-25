@@ -71,117 +71,28 @@ name = "gpu"
 name = "memory"
 
 [[modules]]
-name = "swap"
-
-[[modules]]
 name = "disk"
 
 [[modules]]
 name = "battery"
 
 [[modules]]
-name = "locale"
-
-[[modules]]
 name = "network"
-
-[[modules]]
-name = "load-average"
-
-[[modules]]
-name = "processes"
-
-[[modules]]
-name = "users"
-
-[[modules]]
-name = "temperature"
-
-[[modules]]
-name = "audio"
-
-[[modules]]
-name = "media"
 
 [[modules]]
 name = "datetime"
 
 [[modules]]
-name = "colorscheme"
-
-[[modules]]
 name = "hyprland"
-# Set true to always show HYPRLAND_INSTANCE_SIGNATURE/socket runtime details.
-show_runtime = false
-
-[[modules]]
-name = "hypr-health"
-
-[[modules]]
-name = "hypr-instances"
-compact = true
-
-[[modules]]
-name = "hypr-splash"
-
-[[modules]]
-name = "hypr-active-window"
-compact = true
-
-[[modules]]
-name = "hypr-cursor"
-
-[[modules]]
-name = "hypr-workspace-history"
-compact = true
 
 [[modules]]
 name = "hypr-workspaces"
-compact = true
-
-[[modules]]
-name = "hypr-monitors"
-compact = true
-
-[[modules]]
-name = "hypr-config"
-compact = true
-
-[[modules]]
-name = "hypr-rules"
-compact = true
-
-[[modules]]
-name = "hypr-devices"
-compact = true
-
-[[modules]]
-name = "hypr-binds"
-compact = true
-
-[[modules]]
-name = "hypr-shortcuts"
-compact = true
-
-[[modules]]
-name = "hypr-layouts"
-compact = true
-
-[[modules]]
-name = "hypr-layers"
-compact = true
 
 [[modules]]
 name = "theme"
-compact = false
-show_font = true
 
 [[modules]]
 name = "wallpaper"
-
-[[modules]]
-name = "hypr-ecosystem"
-compact = true
 
 # Command plugins are optional. Uncomment and customize when needed.
 # [[plugins]]
@@ -205,20 +116,26 @@ mod tests {
 
     #[test]
     fn default_config_matches_the_builtin_module_order() {
-        // A user who runs --init-config should get the same output as a user
-        // who runs with no config at all. The shipped TOML and the built-in
-        // default_order must therefore list the same modules.
+        // A user who runs --init-config must get the same output as a user who
+        // runs with no config at all, so the shipped TOML and the built-in
+        // default have to agree — and every shipped module has to exist in the
+        // full order, or the file would name something the binary cannot build.
+        use crate::config::Preset;
         use crate::model::ModuleId;
 
         let config = toml::from_str::<AppConfig>(default_config_toml()).unwrap();
-        let shipped: std::collections::BTreeSet<ModuleId> =
-            config.modules.iter().map(|module| module.name).collect();
-        let builtin: std::collections::BTreeSet<ModuleId> =
-            ModuleId::default_order().iter().copied().collect();
+        let shipped: Vec<ModuleId> = config.modules.iter().map(|module| module.name).collect();
         assert_eq!(
-            shipped, builtin,
+            shipped,
+            Preset::Rice.modules(),
             "shipped config and built-in defaults disagree on modules"
         );
+
+        let full: std::collections::BTreeSet<ModuleId> =
+            ModuleId::default_order().iter().copied().collect();
+        for id in &shipped {
+            assert!(full.contains(id), "shipped module {id} is unknown");
+        }
     }
 
     #[test]

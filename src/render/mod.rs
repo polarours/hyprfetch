@@ -108,14 +108,14 @@ fn render_image_logo(
         return None;
     }
 
-    // Fill the height of the information block: a zero `logo_image_cols` means
-    // "derive the width from the row count", capped at half the terminal. Half
-    // rather than a third, because a square picture sized to a 40-row block is
-    // 80 columns wide — a third would cap it short and leave the block empty
-    // below the logo. An explicit value is used as-is, which is what a user
-    // reaching for the flag wants.
+    // A zero `logo_image_cols` means "size it to the text block", but capped at
+    // a third of the terminal: a square picture stretched to fill 57 rows would
+    // be 114 columns wide and eat half the screen, which reads as a wallpaper
+    // rather than a logo. A third keeps the picture beside the rows instead of
+    // in front of them, and the shortfall shows as a shorter logo, the way
+    // fastfetch composes it.
     let max_cols = if runtime.logo_image_cols == 0 {
-        (terminal_cols / 2).max(10) as u32
+        (terminal_cols / 3).max(10) as u32
     } else {
         runtime.logo_image_cols
     };
