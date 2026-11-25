@@ -164,6 +164,9 @@ fn output_priority(id: &str) -> usize {
         | ModuleId::Processes
         | ModuleId::Users
         | ModuleId::LocalIp
+        | ModuleId::PublicIp
+        | ModuleId::Weather
+        | ModuleId::Display
         | ModuleId::Editor
         | ModuleId::Brightness
         | ModuleId::Wallpaper

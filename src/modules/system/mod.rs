@@ -6,6 +6,7 @@ mod extras;
 mod firmware;
 mod hardware;
 mod media;
+mod network_ext;
 mod session;
 mod storage;
 
@@ -16,6 +17,7 @@ pub use extras::{LoadAverageModule, LocalIpModule, ProcessesModule, UsersModule}
 pub use firmware::{BiosModule, BoardModule, BrightnessModule, EditorModule, InitSystemModule};
 pub use hardware::{CpuModule, GpuModule, MemoryModule, SwapModule};
 pub use media::MediaModule;
+pub use network_ext::{DisplayModule, PublicIpModule, WeatherModule};
 pub use session::{
     AudioModule, ColorschemeModule, DatetimeModule, LocaleModule, NetworkModule, TemperatureModule,
 };

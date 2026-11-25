@@ -43,6 +43,9 @@ pub fn icon_for(key: &str) -> Option<char> {
         "Init" => '\u{f013}',        // fa-cog
         "Editor" => '\u{f044}',      // fa-pencil
         "Brightness" => '\u{f185}',  // fa-sun-o
+        "Weather" => '\u{f0c2}',     // fa-cloud
+        "Public IP" => '\u{f0ac}',   // fa-globe
+        "Display" => '\u{f108}',     // fa-desktop
         "Colorscheme" => '\u{f53f}', // fa-paint-brush
         // rice / hyprland
         "Hyprland" => '\u{f108}',   // fa-desktop

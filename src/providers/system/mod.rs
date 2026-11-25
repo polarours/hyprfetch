@@ -13,16 +13,19 @@ use std::time::Duration;
 use thiserror::Error;
 
 mod cpu;
+mod display;
 mod firmware;
 mod graphics;
 mod load;
 mod media;
 mod memory;
+mod network_ext;
 mod os;
 mod session;
 mod storage;
 
 pub use cpu::CpuUsageInfo;
+pub use display::DisplayInfo;
 pub use graphics::GpuInfo;
 pub use media::MediaPlayer;
 pub use memory::{MemoryInfo, SwapInfo};

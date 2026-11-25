@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `display`: the focused monitor as `2560x1600 @165Hz (eDP-1)`. Hyprland is
+  asked first because it knows the refresh rate; outside the compositor the
+  row falls back to `/sys/class/drm` and simply omits the rate instead of
+  guessing.
+- `weather` and `publicip`, both **opt-in**. They shell out to `curl` with a
+  three-second budget, because a fetch tool should only send traffic when the
+  user asks for it. A failed lookup reports "module unavailable" rather than a
+  stale or invented value.
+### Added
+
 - `bios` and `board`: firmware vendor/version and mainboard model from
   `/sys/class/dmi/id`, with the SMBIOS placeholders (`None`,
   `To Be Filled By O.E.M.`) treated as absent so no row fills with noise.
