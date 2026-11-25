@@ -5,6 +5,22 @@ All notable changes to hyprfetch will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.2.1] - 2026-11-25
+
+### Added
+
+- Four local system modules: `localip` (the address the kernel would route
+  with, via a connected UDP socket — no packets sent), `loadavg` (1/5/15-minute
+  load), `processes` (live process count) and `users` (logged-in users from
+  `who`). All are cheap local reads and join the default module order after
+  `network`.
+- `--icons` (config `icons = true`): prefixes every row with a Nerd Font glyph
+  (` CPU`, ` MEMORY`) while keeping the text label, so the layout still reads
+  without a patched font. Opt-in — terminals without a Nerd Font would show
+  tofu. Only widely-covered Font Awesome codepoints are used.
+
 ## [0.2.0] - 2026-11-25
 
 ### Changed
@@ -85,20 +101,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The README hero is now a fresh recording of the current arcade build:
   ice-blue distro logo in solid pixel blocks, `[BRACKET]` labels and the
   14-cell LED usage meters.
-
-## [Unreleased]
-
-### Added
-
-- Four local system modules: `localip` (the address the kernel would route
-  with, via a connected UDP socket — no packets sent), `loadavg` (1/5/15-minute
-  load), `processes` (live process count) and `users` (logged-in users from
-  `who`). All are cheap local reads and join the default module order after
-  `network`.
-- `--icons` (config `icons = true`): prefixes every row with a Nerd Font glyph
-  (` CPU`, ` MEMORY`) while keeping the text label, so the layout still reads
-  without a patched font. Opt-in — terminals without a Nerd Font would show
-  tofu. Only widely-covered Font Awesome codepoints are used.
 
 ## [0.1.0] - 2026-11-21
 

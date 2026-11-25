@@ -32,7 +32,7 @@
 </div>
 
 > [!IMPORTANT]
-> **hyprfetch 0.2.0 is an early, testing-stage release — not yet a stable version.**
+> **hyprfetch 0.2.1 is an early, testing-stage release — not yet a stable version.**
 > It is published on GitHub for feedback and real-world use, but the config format,
 > module IDs and output layout may still change between releases. Please report bugs
 > and rough edges through [GitHub Issues](https://github.com/polarours/hyprfetch/issues).
