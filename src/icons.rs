@@ -34,6 +34,10 @@ pub fn icon_for(key: &str) -> Option<char> {
         "Audio" => '\u{f028}',       // fa-volume-up
         "Media" => '\u{f001}',       // fa-music
         "Datetime" => '\u{f073}',    // fa-calendar
+        "Load" => '\u{f0e4}',        // fa-tachometer
+        "Processes" => '\u{f0c9}',   // fa-list-ul
+        "Users" => '\u{f007}',       // fa-user
+        "Local IP" => '\u{f225}',    // fa-server
         "Colorscheme" => '\u{f53f}', // fa-paint-brush
         // rice / hyprland
         "Hyprland" => '\u{f108}',   // fa-desktop

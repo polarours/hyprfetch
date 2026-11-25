@@ -157,6 +157,10 @@ fn output_priority(id: &str) -> usize {
         | ModuleId::Media
         | ModuleId::Datetime
         | ModuleId::Colorscheme
+        | ModuleId::LoadAverage
+        | ModuleId::Processes
+        | ModuleId::Users
+        | ModuleId::LocalIp
         | ModuleId::Wallpaper
         | ModuleId::HyprEcosystem
         | ModuleId::HyprSplash

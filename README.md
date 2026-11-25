@@ -53,6 +53,7 @@
 - OS, host, kernel, uptime, packages, shell, terminal, locale, date &amp; time
 - CPU with realtime usage, GPU with VRAM and utilization, memory, swap, disk with selectable mount points, battery, temperature
 - Network interface with IP, WiFi SSID, signal and link speed; PipeWire/PulseAudio sink with volume; MPRIS media players
+- Local IP, load average (1/5/15 min), process count and logged-in users — all cheap local reads, no network calls
 
 ### Hyprland session
 
@@ -409,7 +410,7 @@ A plugin that fails or times out keeps its reason in the output, so a broken plu
 
 | Group | Modules |
 |---|---|
-| System | `os`, `host`, `kernel`, `uptime`, `packages`, `shell`, `terminal`, `cpu`, `gpu`, `memory`, `swap`, `disk`, `battery`, `locale`, `network`, `temperature`, `audio`, `media`, `datetime`, `colorscheme` |
+| System | `os`, `host`, `kernel`, `uptime`, `packages`, `shell`, `terminal`, `cpu`, `gpu`, `memory`, `swap`, `disk`, `battery`, `locale`, `network`, `localip`, `loadavg`, `processes`, `users`, `temperature`, `audio`, `media`, `datetime`, `colorscheme` |
 | Hyprland | `hyprland`, `hypr-health`, `hypr-instances`, `hypr-splash`, `hypr-workspaces`, `hypr-monitors`, `hypr-active-window`, `hypr-cursor`, `hypr-workspace-history`, `hypr-config`, `hypr-rules`, `hypr-devices`, `hypr-binds`, `hypr-shortcuts`, `hypr-layouts`, `hypr-layers`, `hypr-ecosystem` |
 | Rice | `theme`, `wallpaper`, `hypr-rice` |
 

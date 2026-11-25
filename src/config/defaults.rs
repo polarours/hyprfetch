@@ -69,6 +69,15 @@ name = "locale"
 name = "network"
 
 [[modules]]
+name = "load-average"
+
+[[modules]]
+name = "processes"
+
+[[modules]]
+name = "users"
+
+[[modules]]
 name = "temperature"
 
 [[modules]]

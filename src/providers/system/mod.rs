@@ -14,6 +14,7 @@ use thiserror::Error;
 
 mod cpu;
 mod graphics;
+mod load;
 mod media;
 mod memory;
 mod os;
