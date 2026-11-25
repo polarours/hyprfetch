@@ -57,6 +57,13 @@ pub struct CliArgs {
     /// Load custom ASCII logo artwork from a file.
     #[arg(long)]
     pub logo_file: Option<PathBuf>,
+    /// Draw a PNG as the logo with the kitty graphics protocol (kitty, ghostty,
+    /// WezTerm). Implies the plain column layout instead of the arcade view.
+    #[arg(long, value_name = "PATH")]
+    pub logo_image: Option<PathBuf>,
+    /// Width of that image in terminal cells.
+    #[arg(long, value_name = "COLS", default_value_t = 30)]
+    pub logo_image_cols: u32,
     #[arg(long)]
     pub json: bool,
     #[arg(long)]

@@ -223,6 +223,30 @@ fn render_column(
     .collect()
 }
 
+/// The information rows only, with no logo beside them. The image logo path
+/// positions these rows to the right of a picture, so it needs the text alone.
+pub(super) fn render_rows_only(
+    outputs: &[ModuleOutput],
+    runtime: &RuntimeConfig,
+    terminal_width: Option<usize>,
+) -> Vec<String> {
+    let colors_enabled = colors_enabled(runtime.appearance.color);
+    let separator_width = UnicodeWidthStr::width(runtime.appearance.separator.as_str());
+    let filtered_outputs = prioritize_outputs_for_width(outputs, terminal_width);
+    let rows = flatten_rows(&filtered_outputs);
+    if rows.is_empty() {
+        return Vec::new();
+    }
+    let key_width = max_key_width(&rows, !runtime.is_plain(), runtime.icons);
+    let key_suffix_width = usize::from(!runtime.is_plain());
+    let value_width =
+        column_value_width(terminal_width, key_width, key_suffix_width, separator_width);
+    render_column(rows, runtime, colors_enabled, key_width, value_width)
+        .lines()
+        .map(str::to_string)
+        .collect()
+}
+
 fn render_info_lines(
     rows: Vec<RenderRow>,
     runtime: &RuntimeConfig,
@@ -566,6 +590,8 @@ mod tests {
             logo: LogoPreset::None,
             resolved_logo: LogoPreset::None,
             custom_logo: None,
+            logo_image: None,
+            logo_image_cols: 30,
             modules: vec![ModuleConfig::from(ModuleId::Os)],
             plugins: Vec::new(),
             json: false,
@@ -613,6 +639,8 @@ mod tests {
             logo: LogoPreset::None,
             resolved_logo: LogoPreset::None,
             custom_logo: None,
+            logo_image: None,
+            logo_image_cols: 30,
             modules: vec![ModuleConfig::from(ModuleId::Os)],
             plugins: Vec::new(),
             json: false,
@@ -655,6 +683,8 @@ mod tests {
             logo: LogoPreset::None,
             resolved_logo: LogoPreset::None,
             custom_logo: None,
+            logo_image: None,
+            logo_image_cols: 30,
             modules: vec![ModuleConfig::from(ModuleId::Os)],
             plugins: Vec::new(),
             json: false,
@@ -699,6 +729,8 @@ mod tests {
             logo: LogoPreset::Arch,
             resolved_logo: LogoPreset::Arch,
             custom_logo: None,
+            logo_image: None,
+            logo_image_cols: 30,
             modules: vec![ModuleConfig::from(ModuleId::Os)],
             plugins: Vec::new(),
             json: false,
@@ -740,6 +772,8 @@ mod tests {
             logo: LogoPreset::Arch,
             resolved_logo: LogoPreset::Arch,
             custom_logo: None,
+            logo_image: None,
+            logo_image_cols: 30,
             modules: vec![ModuleConfig::from(ModuleId::Theme)],
             plugins: Vec::new(),
             json: false,
@@ -777,6 +811,8 @@ mod tests {
             logo: LogoPreset::None,
             resolved_logo: LogoPreset::None,
             custom_logo: None,
+            logo_image: None,
+            logo_image_cols: 30,
             modules: vec![ModuleConfig::from(ModuleId::Theme)],
             plugins: Vec::new(),
             json: false,
@@ -877,6 +913,8 @@ mod tests {
             logo: LogoPreset::Arch,
             resolved_logo: LogoPreset::Arch,
             custom_logo: None,
+            logo_image: None,
+            logo_image_cols: 30,
             modules: vec![ModuleConfig::from(ModuleId::Os)],
             plugins: Vec::new(),
             json: false,
@@ -927,6 +965,8 @@ mod tests {
             logo: LogoPreset::None,
             resolved_logo: LogoPreset::None,
             custom_logo: None,
+            logo_image: None,
+            logo_image_cols: 30,
             modules: vec![ModuleConfig::from(ModuleId::Os)],
             plugins: Vec::new(),
             json: false,
@@ -977,6 +1017,8 @@ mod tests {
             logo: LogoPreset::Arch,
             resolved_logo: LogoPreset::Arch,
             custom_logo: None,
+            logo_image: None,
+            logo_image_cols: 30,
             modules: vec![ModuleConfig::from(ModuleId::Os)],
             plugins: Vec::new(),
             json: false,
@@ -1033,6 +1075,8 @@ mod tests {
             logo: LogoPreset::Arch,
             resolved_logo: LogoPreset::Arch,
             custom_logo: None,
+            logo_image: None,
+            logo_image_cols: 30,
             modules: vec![
                 ModuleConfig::from(ModuleId::Os),
                 ModuleConfig::from(ModuleId::Cpu),
@@ -1091,6 +1135,8 @@ mod tests {
             logo: LogoPreset::None,
             resolved_logo: LogoPreset::None,
             custom_logo: None,
+            logo_image: None,
+            logo_image_cols: 30,
             modules: vec![ModuleConfig::from(ModuleId::Cpu)],
             plugins: Vec::new(),
             json: false,

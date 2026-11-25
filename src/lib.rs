@@ -37,6 +37,7 @@ pub mod cli;
 pub mod config;
 pub mod icons;
 pub mod logo;
+pub mod logo_image;
 pub mod model;
 pub mod modules;
 pub mod plugins;

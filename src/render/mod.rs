@@ -6,11 +6,13 @@
 use std::env;
 use std::fs;
 use std::io::{self, IsTerminal};
+use std::path::Path;
 use unicode_width::UnicodeWidthStr;
 
 use anyhow::Result;
 
 use crate::config::RuntimeConfig;
+use crate::logo_image;
 use crate::model::{ModuleId, ModuleOutput, ModuleStatus};
 
 mod doctor;
@@ -70,7 +72,50 @@ pub fn render(
         return render_json(outputs).map(|rendered| (rendered, None));
     }
 
+    // An image logo replaces the whole text layout: the picture is drawn at the
+    // top-left and the rows are positioned beside it with absolute cursor moves.
+    // Only in a real terminal, and only where the protocol is supported.
+    if !runtime.is_plain()
+        && io::stdout().is_terminal()
+        && let Some(path) = runtime.logo_image.as_deref()
+        && let Some(rendered) = render_image_logo(outputs, runtime, Path::new(path))
+    {
+        return Ok((rendered, None));
+    }
+
     Ok(render_text(outputs, runtime))
+}
+
+/// Draw a PNG as the logo and place the rows to its right.
+///
+/// Returns `None` whenever the terminal cannot do it or the file is unusable,
+/// so the caller falls back to the text layout rather than printing raw escape
+/// codes into the output.
+fn render_image_logo(
+    outputs: &[ModuleOutput],
+    runtime: &RuntimeConfig,
+    path: &Path,
+) -> Option<String> {
+    if !logo_image::supports_graphics() {
+        return None;
+    }
+    let png = logo_image::load_png(path)?;
+    let dimensions = logo_image::png_dimensions(&png)?;
+    let cols = runtime.logo_image_cols.max(1);
+    let rows = logo_image::image_rows(cols, dimensions);
+
+    let lines = layout::render_rows_only(outputs, runtime, detect_terminal_width());
+    if lines.is_empty() {
+        return None;
+    }
+
+    let text_col = cols + 2;
+    let mut rendered = String::from("\x1b[H");
+    rendered.push_str(&logo_image::apc(&png, cols, rows));
+    for (index, line) in lines.iter().enumerate() {
+        rendered.push_str(&format!("\x1b[{};{}H{}", index + 1, text_col, line));
+    }
+    Some(rendered)
 }
 
 pub fn render_json(outputs: &[ModuleOutput]) -> Result<String> {

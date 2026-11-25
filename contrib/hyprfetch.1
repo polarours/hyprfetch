@@ -54,6 +54,17 @@ Skip the expensive probes (CPU sampling, GPU vendor tools, audio, network and
 media commands) for a near-instant render. Every row stays, with the values
 that need a probe omitted rather than faked.
 .TP
+.BI \-\-logo\-image " path"
+Draw the PNG at
+.I path
+as the logo, using the kitty graphics protocol (kitty, ghostty and WezTerm).
+The information rows are placed to the right of the picture and the arcade
+view is turned off for that run. Where the protocol is unavailable, or the file
+is missing, is not a PNG, or exceeds 8 MB, the text logo is used instead.
+.TP
+.BI \-\-logo\-image\-cols " n"
+How many terminal cells wide the image is drawn. Defaults to 30.
+.TP
 .B \-\-icons
 Prefix every row with a Nerd Font glyph while keeping the text label, for
 terminals whose font includes the Nerd Font private-use glyphs. Off by

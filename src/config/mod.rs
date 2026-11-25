@@ -39,6 +39,10 @@ pub struct AppConfig {
     /// Artwork loaded from --logo-file (not serialized to config files).
     #[serde(skip)]
     pub custom_logo: Option<String>,
+    /// A PNG logo drawn with the kitty graphics protocol.
+    pub logo_image: Option<String>,
+    /// How many cells wide it is drawn.
+    pub logo_image_cols: u32,
     pub modules: Vec<ModuleConfig>,
     pub plugins: Vec<PluginConfig>,
 }
@@ -54,6 +58,8 @@ impl Default for AppConfig {
             retro: true,
             icons: false,
             custom_logo: None,
+            logo_image: None,
+            logo_image_cols: 30,
             modules: ModuleId::default_order()
                 .iter()
                 .copied()
@@ -214,6 +220,10 @@ pub struct RuntimeConfig {
     pub resolved_logo: LogoPreset,
     /// Artwork loaded from --logo-file, rendered instead of a built-in preset.
     pub custom_logo: Option<String>,
+    /// A PNG drawn with the kitty graphics protocol instead of any text logo.
+    pub logo_image: Option<String>,
+    /// How many cells wide that image should be.
+    pub logo_image_cols: u32,
     pub modules: Vec<ModuleConfig>,
     pub plugins: Vec<PluginConfig>,
     pub json: bool,

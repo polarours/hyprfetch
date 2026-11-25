@@ -75,6 +75,7 @@
 - Styled split layout with the running distro's logo drawn in solid pixel blocks, a session title, optional color bars and arcade LED usage meters (`▮▮▮▮▮▯▯▯▯▯▯▯▯▯`: lit cells for the load, hollow cells for the remainder)
 - Arcade button labels: keys render as upper-case `[CPU]`, `[MEMORY]`, `[KERNEL]` tags, padded so every value starts in the same column
 - `--icons` swaps the labels for Nerd Font glyphs (` CPU`) while keeping the text tag — opt-in, because a terminal without a Nerd Font shows tofu
+- `--logo-image shot.png` draws a real PNG as the logo through the kitty graphics protocol, with the rows positioned beside it; it falls back to the text logo on terminals without the protocol
 - Figures in the values (`53%`, `8.1 GiB`, `72°C`) are picked out in the theme accent, so numbers read like a game HUD
 - Width-aware layout fallback: a narrower logo, then denser text layouts on narrow terminals, with core system and Hyprland rows prioritized over auxiliary ones
 - Four reveal animations, `--watch` refresh, plain/minimal/JSON/diagnostics modes, configurable module order, user-defined labels and command plugins
@@ -108,6 +109,7 @@ hyprfetch --preset minimal      # short core rows
 hyprfetch --preset all          # every default module
 hyprfetch --fast                # near-instant render (~18 ms)
 hyprfetch --icons               # Nerd Font glyphs instead of plain labels
+hyprfetch --logo-image me.png   # draw a PNG logo (kitty / ghostty / WezTerm)
 hyprfetch --share               # rice-screenshot preset
 hyprfetch --plain               # no styling
 hyprfetch --style minimal       # key:value rows only

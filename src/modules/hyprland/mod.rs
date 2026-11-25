@@ -96,6 +96,8 @@ mod tests {
             logo: crate::logo::LogoPreset::None,
             resolved_logo: crate::logo::LogoPreset::None,
             custom_logo: None,
+            logo_image: None,
+            logo_image_cols: 30,
             modules: Vec::new(),
             plugins: Vec::new(),
             json: false,

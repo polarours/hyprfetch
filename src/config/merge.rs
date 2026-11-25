@@ -83,17 +83,28 @@ pub fn merge(cli: &CliArgs, config: AppConfig) -> RuntimeConfig {
         cli.logo.unwrap_or(config.logo.preset)
     };
 
+    // Checked before the struct literal moves `config.logo_image` into it.
+    let has_logo_image = cli.logo_image.is_some() || config.logo_image.is_some();
+
     RuntimeConfig {
         appearance,
         logo,
         resolved_logo: logo,
         custom_logo: config.custom_logo,
+        logo_image: cli
+            .logo_image
+            .as_ref()
+            .map(|path| path.display().to_string())
+            .or(config.logo_image),
+        logo_image_cols: cli.logo_image_cols,
         modules,
         plugins,
         json: cli.json,
         diagnostics: cli.diagnostics,
         doctor: cli.doctor,
-        retro: (cli.retro || config.retro) && !cli.no_retro,
+        // An image logo needs the column layout, so it switches the arcade
+        // view off rather than fighting it for the same space.
+        retro: (cli.retro || config.retro) && !cli.no_retro && !has_logo_image,
         icons: cli.icons || config.icons,
         // The command line wins over the config file; the default tells the
         // two-phase story. The renderer gates the rest off where animation
@@ -152,6 +163,8 @@ mod tests {
             preset: None,
             theme_file: None,
             logo_file: None,
+            logo_image: None,
+            logo_image_cols: 30,
             doctor: false,
             retro: false,
             no_retro: false,
@@ -191,6 +204,8 @@ mod tests {
                 icons: false,
 
                 custom_logo: None,
+                logo_image: None,
+                logo_image_cols: 30,
                 modules: vec![os],
                 plugins: Vec::new(),
             },
@@ -209,6 +224,8 @@ mod tests {
             preset: None,
             theme_file: None,
             logo_file: None,
+            logo_image: None,
+            logo_image_cols: 30,
             doctor: false,
             retro: false,
             no_retro: false,
@@ -260,6 +277,8 @@ mod tests {
             preset: None,
             theme_file: None,
             logo_file: None,
+            logo_image: None,
+            logo_image_cols: 30,
             doctor: false,
             retro: false,
             no_retro: false,
@@ -296,6 +315,8 @@ mod tests {
                 icons: false,
 
                 custom_logo: None,
+                logo_image: None,
+                logo_image_cols: 30,
                 modules: vec![super::super::ModuleConfig::from(ModuleId::Kernel)],
                 plugins: Vec::new(),
             },
@@ -323,6 +344,8 @@ mod tests {
             preset: None,
             theme_file: None,
             logo_file: None,
+            logo_image: None,
+            logo_image_cols: 30,
             doctor: false,
             retro: false,
             no_retro: false,
@@ -361,6 +384,8 @@ mod tests {
                 icons: false,
 
                 custom_logo: None,
+                logo_image: None,
+                logo_image_cols: 30,
                 modules: vec![disk],
                 plugins: Vec::new(),
             },
@@ -384,6 +409,8 @@ mod tests {
             preset: None,
             theme_file: None,
             logo_file: None,
+            logo_image: None,
+            logo_image_cols: 30,
             doctor: false,
             retro: false,
             no_retro: false,
@@ -421,6 +448,8 @@ mod tests {
                 icons: false,
 
                 custom_logo: None,
+                logo_image: None,
+                logo_image_cols: 30,
                 modules: vec![disk],
                 plugins: Vec::new(),
             },
@@ -443,6 +472,8 @@ mod tests {
             preset: None,
             theme_file: None,
             logo_file: None,
+            logo_image: None,
+            logo_image_cols: 30,
             doctor: false,
             retro: false,
             no_retro: false,
@@ -480,6 +511,8 @@ mod tests {
                 icons: false,
 
                 custom_logo: None,
+                logo_image: None,
+                logo_image_cols: 30,
                 modules: vec![disk],
                 plugins: Vec::new(),
             },
@@ -500,6 +533,8 @@ mod tests {
             preset: None,
             theme_file: None,
             logo_file: None,
+            logo_image: None,
+            logo_image_cols: 30,
             doctor: false,
             retro: false,
             no_retro: false,
@@ -537,6 +572,8 @@ mod tests {
                 icons: false,
 
                 custom_logo: None,
+                logo_image: None,
+                logo_image_cols: 30,
                 modules: Vec::new(),
                 plugins: Vec::new(),
             },
