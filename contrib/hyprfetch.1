@@ -40,6 +40,25 @@ Print the default configuration to standard output and exit.
 .B \-\-no\-config
 Ignore the configuration file for this run.
 .TP
+.B \-\-retro
+Force the arcade styling on. It is already the default; the flag exists so a
+config with
+.B retro = false
+can be overridden for one run.
+.TP
+.B \-\-no\-retro
+Disable the default arcade styling and print the plain fetch look.
+.TP
+.B \-\-fast
+Skip the expensive probes (CPU sampling, GPU vendor tools, audio, network and
+media commands) for a near-instant render. Every row stays, with the values
+that need a probe omitted rather than faked.
+.TP
+.B \-\-icons
+Prefix every row with a Nerd Font glyph while keeping the text label, for
+terminals whose font includes the Nerd Font private-use glyphs. Off by
+default: a terminal without such a font renders the glyphs as empty boxes.
+.TP
 .B \-\-plain
 Print plain key and value rows without the logo, the header or the colour
 bars.

@@ -94,6 +94,7 @@ pub fn merge(cli: &CliArgs, config: AppConfig) -> RuntimeConfig {
         diagnostics: cli.diagnostics,
         doctor: cli.doctor,
         retro: (cli.retro || config.retro) && !cli.no_retro,
+        icons: cli.icons || config.icons,
         // The command line wins over the config file; the default tells the
         // two-phase story. The renderer gates the rest off where animation
         // cannot run.
@@ -154,6 +155,7 @@ mod tests {
             doctor: false,
             retro: false,
             no_retro: false,
+            icons: false,
             init_config: false,
             print_config: false,
             no_config: false,
@@ -186,6 +188,7 @@ mod tests {
                 animation: None,
                 fast: false,
                 retro: false,
+                icons: false,
 
                 custom_logo: None,
                 modules: vec![os],
@@ -209,6 +212,7 @@ mod tests {
             doctor: false,
             retro: false,
             no_retro: false,
+            icons: false,
             init_config: false,
             print_config: false,
             no_config: false,
@@ -259,6 +263,7 @@ mod tests {
             doctor: false,
             retro: false,
             no_retro: false,
+            icons: false,
             init_config: false,
             print_config: false,
             no_config: false,
@@ -288,6 +293,7 @@ mod tests {
                 animation: None,
                 fast: false,
                 retro: false,
+                icons: false,
 
                 custom_logo: None,
                 modules: vec![super::super::ModuleConfig::from(ModuleId::Kernel)],
@@ -320,6 +326,7 @@ mod tests {
             doctor: false,
             retro: false,
             no_retro: false,
+            icons: false,
             init_config: false,
             print_config: false,
             no_config: false,
@@ -351,6 +358,7 @@ mod tests {
                 animation: None,
                 fast: false,
                 retro: false,
+                icons: false,
 
                 custom_logo: None,
                 modules: vec![disk],
@@ -379,6 +387,7 @@ mod tests {
             doctor: false,
             retro: false,
             no_retro: false,
+            icons: false,
             init_config: false,
             print_config: false,
             no_config: false,
@@ -409,6 +418,7 @@ mod tests {
                 animation: None,
                 fast: false,
                 retro: false,
+                icons: false,
 
                 custom_logo: None,
                 modules: vec![disk],
@@ -436,6 +446,7 @@ mod tests {
             doctor: false,
             retro: false,
             no_retro: false,
+            icons: false,
             init_config: false,
             print_config: false,
             no_config: false,
@@ -466,6 +477,7 @@ mod tests {
                 animation: None,
                 fast: false,
                 retro: false,
+                icons: false,
 
                 custom_logo: None,
                 modules: vec![disk],
@@ -491,6 +503,7 @@ mod tests {
             doctor: false,
             retro: false,
             no_retro: false,
+            icons: false,
             init_config: false,
             print_config: false,
             no_config: false,
@@ -521,6 +534,7 @@ mod tests {
                 animation: None,
                 fast: false,
                 retro: false,
+                icons: false,
 
                 custom_logo: None,
                 modules: Vec::new(),

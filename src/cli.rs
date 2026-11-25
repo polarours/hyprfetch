@@ -70,6 +70,9 @@ pub struct CliArgs {
     /// Disable the default arcade styling.
     #[arg(long)]
     pub no_retro: bool,
+    /// Replace the [LABEL] tags with Nerd Font icons (needs a Nerd Font).
+    #[arg(long)]
+    pub icons: bool,
     #[arg(long)]
     pub list_logos: bool,
     #[arg(long)]

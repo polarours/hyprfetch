@@ -44,6 +44,8 @@ struct RenderRow {
 #[derive(Debug, Clone, Copy)]
 struct InfoRenderOptions {
     key_width: usize,
+    /// Prefix each label with a Nerd Font icon (`--icons`).
+    icons: bool,
     value_width: Option<usize>,
     max_line_width: Option<usize>,
     include_header: bool,

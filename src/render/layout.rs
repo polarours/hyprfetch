@@ -33,7 +33,7 @@ pub(super) fn render_text_with_width(
         if rows.is_empty() {
             return (String::new(), None);
         }
-        let key_width = max_key_width(&rows, true);
+        let key_width = max_key_width(&rows, true, runtime.icons);
         // A custom logo file supplies its own artwork; use the default tone
         // set so it is colored from the active palette like built-in logos.
         let logo_definition = if runtime.custom_logo.is_some() {
@@ -94,7 +94,7 @@ pub(super) fn render_text_with_width(
         return (String::new(), None);
     }
 
-    let key_width = max_key_width(&rows, !runtime.is_plain());
+    let key_width = max_key_width(&rows, !runtime.is_plain(), runtime.icons);
 
     if is_minimal {
         if has_column_space(terminal_width, key_width, separator_width) {
@@ -155,6 +155,7 @@ pub(super) fn render_split(
         colors_enabled,
         InfoRenderOptions {
             key_width,
+            icons: runtime.icons,
             value_width,
             // the title is indented by one against the keys
             max_line_width: right_width.and_then(|width| width.checked_sub(1)),
@@ -210,6 +211,7 @@ fn render_column(
         colors_enabled,
         InfoRenderOptions {
             key_width,
+            icons: runtime.icons,
             value_width,
             // the title is indented by one against the keys
             max_line_width: right_width.and_then(|width| width.checked_sub(1)),
@@ -373,6 +375,7 @@ fn render_minimal(
         colors_enabled,
         InfoRenderOptions {
             key_width,
+            icons: runtime.icons,
             value_width,
             max_line_width: None,
             include_header: false,
@@ -414,6 +417,11 @@ fn flatten_rows(outputs: &[ModuleOutput]) -> Vec<RenderRow> {
         .collect()
 }
 
+/// Width reserved in front of a label when `--icons` is active: one glyph
+/// column plus one space. Rows without a mapped icon reserve the same space so
+/// every value keeps its column.
+const ICON_PREFIX_WIDTH: usize = 2;
+
 fn render_key(key: &str, options: InfoRenderOptions) -> String {
     // format!'s width counts Unicode scalar values, not display columns, so a
     // wide key would be padded too little and misalign the values.
@@ -423,9 +431,20 @@ fn render_key(key: &str, options: InfoRenderOptions) -> String {
         // starts in the same column. Square brackets are plain ASCII, so the
         // width budget stays exact on every terminal (unlike `▸`/`»`, which
         // are ambiguous-width and shift the layout when drawn two columns wide).
-        let label_width = key_width + 2;
+        let mut label = String::new();
+        if options.icons {
+            match crate::icons::icon_for(key) {
+                Some(glyph) => {
+                    label.push(glyph);
+                    label.push(' ');
+                }
+                // Keep the column even when a row has no icon mapped.
+                None => label.push_str("  "),
+            }
+        }
+        let label_width = key_width + 2 + usize::from(options.icons) * ICON_PREFIX_WIDTH;
         let padding = options.key_width.saturating_sub(label_width);
-        format!("[{}]{}", key.to_uppercase(), " ".repeat(padding))
+        format!("{label}[{}]{}", key.to_uppercase(), " ".repeat(padding))
     } else {
         let padding = options.key_width.saturating_sub(key_width);
         format!("{}{}", " ".repeat(padding), key)
@@ -461,13 +480,19 @@ fn dense_priority_ceiling(terminal_width: Option<usize>) -> Option<usize> {
     }
 }
 
-fn max_key_width(rows: &[RenderRow], include_header: bool) -> usize {
+fn max_key_width(rows: &[RenderRow], include_header: bool, icons: bool) -> usize {
     let brackets = if include_header { 2 } else { 0 };
+    let icon_prefix = if include_header && icons {
+        ICON_PREFIX_WIDTH
+    } else {
+        0
+    };
     rows.iter()
         .map(|row| UnicodeWidthStr::width(row.key.as_str()))
         .max()
         .unwrap_or(0)
         + brackets
+        + icon_prefix
 }
 
 fn has_split_space(terminal_width: Option<usize>, split_base_width: usize) -> bool {
@@ -548,6 +573,7 @@ mod tests {
             diagnostics: false,
             doctor: false,
             retro: false,
+            icons: false,
             animation: crate::animation::RevealStyle::Static,
             watch: false,
             watch_interval: 1,
@@ -594,6 +620,7 @@ mod tests {
             diagnostics: false,
             doctor: false,
             retro: false,
+            icons: false,
             animation: crate::animation::RevealStyle::Static,
             watch: false,
             watch_interval: 1,
@@ -635,6 +662,7 @@ mod tests {
             diagnostics: false,
             doctor: false,
             retro: false,
+            icons: false,
             animation: crate::animation::RevealStyle::Static,
             watch: false,
             watch_interval: 1,
@@ -678,6 +706,7 @@ mod tests {
             diagnostics: false,
             doctor: false,
             retro: false,
+            icons: false,
             animation: crate::animation::RevealStyle::Static,
             watch: false,
             watch_interval: 1,
@@ -718,6 +747,7 @@ mod tests {
             diagnostics: false,
             doctor: false,
             retro: false,
+            icons: false,
             animation: crate::animation::RevealStyle::Static,
             watch: false,
             watch_interval: 1,
@@ -754,6 +784,7 @@ mod tests {
             diagnostics: false,
             doctor: false,
             retro: false,
+            icons: false,
             animation: crate::animation::RevealStyle::Static,
             watch: false,
             watch_interval: 1,
@@ -853,6 +884,7 @@ mod tests {
             diagnostics: false,
             doctor: false,
             retro: false,
+            icons: false,
             animation: crate::animation::RevealStyle::Static,
             watch: false,
             watch_interval: 1,
@@ -902,6 +934,7 @@ mod tests {
             diagnostics: false,
             doctor: false,
             retro: false,
+            icons: false,
             animation: crate::animation::RevealStyle::Static,
             watch: false,
             watch_interval: 1,
@@ -951,6 +984,7 @@ mod tests {
             diagnostics: false,
             doctor: false,
             retro: false,
+            icons: false,
             animation: crate::animation::RevealStyle::Static,
             watch: false,
             watch_interval: 1,
@@ -1009,6 +1043,7 @@ mod tests {
             diagnostics: false,
             doctor: false,
             retro: false,
+            icons: false,
             animation: crate::animation::RevealStyle::Static,
             watch: false,
             watch_interval: 1,
@@ -1063,6 +1098,7 @@ mod tests {
             diagnostics: false,
             doctor: false,
             retro: false,
+            icons: false,
             animation: crate::animation::RevealStyle::Static,
             watch: false,
             watch_interval: 1,
@@ -1094,6 +1130,7 @@ mod tests {
         // starts in the same column.
         let options = InfoRenderOptions {
             key_width: 8,
+            icons: false,
             value_width: None,
             max_line_width: None,
             include_header: true,

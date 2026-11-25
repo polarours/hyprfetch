@@ -363,6 +363,7 @@ mod tests {
             diagnostics: false,
             doctor: false,
             retro: false,
+            icons: false,
             animation: crate::animation::RevealStyle::Static,
             watch: false,
             watch_interval: 1,

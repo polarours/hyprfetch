@@ -34,6 +34,8 @@ pub struct AppConfig {
     pub fast: bool,
     /// Render with retro arcade styling.
     pub retro: bool,
+    /// Replace [LABEL] tags with Nerd Font icons.
+    pub icons: bool,
     /// Artwork loaded from --logo-file (not serialized to config files).
     #[serde(skip)]
     pub custom_logo: Option<String>,
@@ -50,6 +52,7 @@ impl Default for AppConfig {
             animation: None,
             fast: false,
             retro: true,
+            icons: false,
             custom_logo: None,
             modules: ModuleId::default_order()
                 .iter()
@@ -217,6 +220,7 @@ pub struct RuntimeConfig {
     pub diagnostics: bool,
     pub doctor: bool,
     pub retro: bool,
+    pub icons: bool,
     pub animation: crate::animation::RevealStyle,
     pub fast: bool,
     pub watch: bool,

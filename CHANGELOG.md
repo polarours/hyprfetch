@@ -88,6 +88,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `--icons` (config `icons = true`): prefixes every row with a Nerd Font glyph
+  (` CPU`, ` MEMORY`) while keeping the text label, so the layout still reads
+  without a patched font. Opt-in — terminals without a Nerd Font would show
+  tofu. Only widely-covered Font Awesome codepoints are used.
 
 ## [0.1.0] - 2026-11-21
 

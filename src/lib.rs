@@ -35,6 +35,7 @@ pub mod animation;
 pub mod app;
 pub mod cli;
 pub mod config;
+pub mod icons;
 pub mod logo;
 pub mod model;
 pub mod modules;

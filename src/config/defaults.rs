@@ -8,6 +8,9 @@ animation = "split"
 # Arcade styling is on by default; disable with --no-retro.
 retro = true
 
+# Replace the [LABEL] tags with Nerd Font icons (requires a Nerd Font).
+icons = false
+
 [appearance]
 style = "split"
 palette = "arcade"
