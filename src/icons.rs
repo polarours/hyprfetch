@@ -38,6 +38,11 @@ pub fn icon_for(key: &str) -> Option<char> {
         "Processes" => '\u{f0c9}',   // fa-list-ul
         "Users" => '\u{f007}',       // fa-user
         "Local IP" => '\u{f225}',    // fa-server
+        "BIOS" => '\u{f2db}',        // fa-microchip
+        "Board" => '\u{f0ad}',       // fa-wrench
+        "Init" => '\u{f013}',        // fa-cog
+        "Editor" => '\u{f044}',      // fa-pencil
+        "Brightness" => '\u{f185}',  // fa-sun-o
         "Colorscheme" => '\u{f53f}', // fa-paint-brush
         // rice / hyprland
         "Hyprland" => '\u{f108}',   // fa-desktop

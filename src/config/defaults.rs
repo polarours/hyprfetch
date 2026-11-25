@@ -30,7 +30,16 @@ name = "os"
 name = "host"
 
 [[modules]]
+name = "bios"
+
+[[modules]]
+name = "board"
+
+[[modules]]
 name = "kernel"
+
+[[modules]]
+name = "init-system"
 
 [[modules]]
 name = "uptime"

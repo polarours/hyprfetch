@@ -127,7 +127,10 @@ fn output_priority(id: &str) -> usize {
     match id {
         ModuleId::Os
         | ModuleId::Host
+        | ModuleId::Bios
+        | ModuleId::Board
         | ModuleId::Kernel
+        | ModuleId::InitSystem
         | ModuleId::Uptime
         | ModuleId::Packages
         | ModuleId::Memory
@@ -161,6 +164,8 @@ fn output_priority(id: &str) -> usize {
         | ModuleId::Processes
         | ModuleId::Users
         | ModuleId::LocalIp
+        | ModuleId::Editor
+        | ModuleId::Brightness
         | ModuleId::Wallpaper
         | ModuleId::HyprEcosystem
         | ModuleId::HyprSplash

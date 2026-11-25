@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `bios` and `board`: firmware vendor/version and mainboard model from
+  `/sys/class/dmi/id`, with the SMBIOS placeholders (`None`,
+  `To Be Filled By O.E.M.`) treated as absent so no row fills with noise.
+- `initsystem`: the init that owns PID 1, normalised to `systemd`, `OpenRC`,
+  `runit`, `s6` or `sysvinit`.
+- `editor`: `$VISUAL`, then `$EDITOR` (reduced to the binary name), then the
+  first of `nvim`/`vim`/`hx`/`nano`/`emacs` found on `PATH`.
+- `brightness`: average backlight level across `/sys/class/backlight` devices.
+- `bios`, `board` and `initsystem` join the default order; `editor` and
+  `brightness` stay opt-in.
 ## [0.2.1] - 2026-11-25
 
 ### Added

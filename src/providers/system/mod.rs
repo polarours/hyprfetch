@@ -13,6 +13,7 @@ use std::time::Duration;
 use thiserror::Error;
 
 mod cpu;
+mod firmware;
 mod graphics;
 mod load;
 mod media;
