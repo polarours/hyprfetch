@@ -784,12 +784,27 @@ fn distro_logo_is_default_and_drawn_in_pixel_blocks() {
 }
 
 #[test]
-fn icons_mode_prefixes_labels_with_nerd_font_glyphs() {
+fn icons_are_on_by_default_and_no_icons_turns_them_off() {
     let with_icons = Command::cargo_bin("hyprfetch")
+        .unwrap()
+        .args(["--no-config", "--color", "never", "--animation", "static"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let t = String::from_utf8(with_icons).unwrap();
+    assert!(
+        t.chars().any(|c| ('\u{e000}'..='\u{f8ff}').contains(&c)),
+        "icons should be the default: {t}"
+    );
+    assert!(t.contains("[CPU]"), "labels must survive icon mode: {t}");
+
+    let plain = Command::cargo_bin("hyprfetch")
         .unwrap()
         .args([
             "--no-config",
-            "--icons",
+            "--no-icons",
             "--color",
             "never",
             "--animation",
@@ -800,25 +815,10 @@ fn icons_mode_prefixes_labels_with_nerd_font_glyphs() {
         .get_output()
         .stdout
         .clone();
-    let t = String::from_utf8(with_icons).unwrap();
-    assert!(
-        t.chars().any(|c| ('\u{e000}'..='\u{f8ff}').contains(&c)),
-        "expected Nerd Font glyphs in the icon output"
-    );
-    // Labels stay readable next to the glyph.
-    assert!(t.contains("[CPU]"), "labels must survive icon mode: {t}");
-
-    let plain = Command::cargo_bin("hyprfetch")
-        .unwrap()
-        .args(["--no-config", "--color", "never", "--animation", "static"])
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
     let p = String::from_utf8(plain).unwrap();
     assert!(
         !p.chars().any(|c| ('\u{e000}'..='\u{f8ff}').contains(&c)),
-        "private-use glyphs must stay out of the default output"
+        "--no-icons must strip the private-use glyphs: {p}"
     );
+    assert!(p.contains("[CPU]"));
 }

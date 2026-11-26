@@ -56,7 +56,7 @@ impl Default for AppConfig {
             animation: None,
             fast: false,
             retro: true,
-            icons: false,
+            icons: true,
             custom_logo: None,
             logo_image: None,
             logo_image_cols: 0,

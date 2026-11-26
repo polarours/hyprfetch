@@ -78,9 +78,13 @@ pub struct CliArgs {
     /// Disable the default arcade styling.
     #[arg(long)]
     pub no_retro: bool,
-    /// Replace the [LABEL] tags with Nerd Font icons (needs a Nerd Font).
+    /// Force Nerd Font icons on (they are already the default).
     #[arg(long)]
     pub icons: bool,
+    /// Turn the icons off: plain [LABEL] tags only, for terminals whose font
+    /// lacks the Nerd Font private-use glyphs.
+    #[arg(long)]
+    pub no_icons: bool,
     #[arg(long)]
     pub list_logos: bool,
     #[arg(long)]

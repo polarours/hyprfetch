@@ -8,6 +8,10 @@ animation = "split"
 # Arcade styling is on by default; disable with --no-retro.
 retro = true
 
+# Nerd Font glyphs in front of every label. On by default; turn it off with
+# icons = false or --no-icons if the terminal font lacks the private-use glyphs.
+icons = true
+
 # Draw a PNG as the logo and place the rows beside it. Needs the kitty graphics
 # protocol (kitty, ghostty, WezTerm); elsewhere the text logo is used. Setting
 # this turns the arcade view off, because a picture and a HUD cannot share the
@@ -15,9 +19,6 @@ retro = true
 # logo_image = "~/pictures/logo.png"
 # Maximum width in cells; 0 derives it from the number of rows.
 # logo_image_cols = 0
-
-# Replace the [LABEL] tags with Nerd Font icons (requires a Nerd Font).
-icons = false
 
 [appearance]
 style = "split"

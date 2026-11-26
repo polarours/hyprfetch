@@ -105,7 +105,7 @@ pub fn merge(cli: &CliArgs, config: AppConfig) -> RuntimeConfig {
         // An image logo needs the column layout, so it switches the arcade
         // view off rather than fighting it for the same space.
         retro: (cli.retro || config.retro) && !cli.no_retro && !has_logo_image,
-        icons: cli.icons || config.icons,
+        icons: (cli.icons || config.icons) && !cli.no_icons,
         // The command line wins over the config file; the default tells the
         // two-phase story. The renderer gates the rest off where animation
         // cannot run.
@@ -169,6 +169,7 @@ mod tests {
             retro: false,
             no_retro: false,
             icons: false,
+            no_icons: false,
             init_config: false,
             print_config: false,
             no_config: false,
@@ -230,6 +231,7 @@ mod tests {
             retro: false,
             no_retro: false,
             icons: false,
+            no_icons: false,
             init_config: false,
             print_config: false,
             no_config: false,
@@ -283,6 +285,7 @@ mod tests {
             retro: false,
             no_retro: false,
             icons: false,
+            no_icons: false,
             init_config: false,
             print_config: false,
             no_config: false,
@@ -350,6 +353,7 @@ mod tests {
             retro: false,
             no_retro: false,
             icons: false,
+            no_icons: false,
             init_config: false,
             print_config: false,
             no_config: false,
@@ -415,6 +419,7 @@ mod tests {
             retro: false,
             no_retro: false,
             icons: false,
+            no_icons: false,
             init_config: false,
             print_config: false,
             no_config: false,
@@ -478,6 +483,7 @@ mod tests {
             retro: false,
             no_retro: false,
             icons: false,
+            no_icons: false,
             init_config: false,
             print_config: false,
             no_config: false,
@@ -539,6 +545,7 @@ mod tests {
             retro: false,
             no_retro: false,
             icons: false,
+            no_icons: false,
             init_config: false,
             print_config: false,
             no_config: false,

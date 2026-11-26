@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Nerd Font icons are now on by default. The row labels keep their `[CPU]`
+  form and gain a glyph in front, because that is what a rice screenshot wants;
+  `--no-icons` (or `icons = false`) restores the bare labels for terminals
+  whose font lacks the private-use glyphs. Nothing changes for a user whose
+  terminal cannot show them beyond one extra column of `?` — the flag exists
+  precisely for that case.
+### Changed
+
 - The default config now ships 21 curated modules instead of all 46. The
   previous file enabled every Hyprland diagnostic (health, rules, binds,
   shortcuts, layers, ecosystem, …), which produced a 57-row wall of text where

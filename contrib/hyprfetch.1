@@ -69,9 +69,16 @@ height of the text block, capped at half the terminal. A non-zero value is used
 as the ceiling and the picture keeps its aspect ratio inside it.
 .TP
 .B \-\-icons
-Prefix every row with a Nerd Font glyph while keeping the text label, for
-terminals whose font includes the Nerd Font private-use glyphs. Off by
-default: a terminal without such a font renders the glyphs as empty boxes.
+Force the Nerd Font glyph prefix on. This is already the default; the flag
+exists so a config with
+.B icons = false
+can be overridden for one run.
+.TP
+.B \-\-no\-icons
+Print the plain
+.B [LABEL]
+tags without a glyph. Use this on a terminal whose font lacks the Nerd Font
+private-use glyphs, where they would otherwise render as empty boxes.
 .TP
 .B \-\-plain
 Print plain key and value rows without the logo, the header or the colour
