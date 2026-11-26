@@ -30,6 +30,7 @@ impl Preset {
                 ModuleId::Host,
                 ModuleId::Bios,
                 ModuleId::Board,
+                ModuleId::Chassis,
                 ModuleId::Kernel,
                 ModuleId::InitSystem,
                 ModuleId::Uptime,
@@ -41,6 +42,7 @@ impl Preset {
                 ModuleId::Memory,
                 ModuleId::Disk,
                 ModuleId::Battery,
+                ModuleId::PowerAdapter,
                 ModuleId::Network,
                 ModuleId::Datetime,
                 ModuleId::Hyprland,
@@ -109,7 +111,7 @@ mod tests {
     #[test]
     fn rice_stays_short_enough_for_one_screen() {
         assert!(
-            Preset::Rice.modules().len() <= 22,
+            Preset::Rice.modules().len() <= 24,
             "the screenshot preset must stay glanceable"
         );
     }

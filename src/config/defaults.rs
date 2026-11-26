@@ -45,6 +45,9 @@ name = "bios"
 name = "board"
 
 [[modules]]
+name = "chassis"
+
+[[modules]]
 name = "kernel"
 
 [[modules]]
@@ -76,6 +79,9 @@ name = "disk"
 
 [[modules]]
 name = "battery"
+
+[[modules]]
+name = "power-adapter"
 
 [[modules]]
 name = "network"

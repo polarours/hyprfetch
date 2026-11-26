@@ -28,8 +28,11 @@ fn key_accent(key: &str) -> Option<usize> {
         "Uptime" | "Shell" | "Terminal" => Some(1),
         "CPU" | "GPU" | "Memory" | "Disk" => Some(2),
         "Battery" | "Locale" | "Load" | "Processes" | "Users" | "BIOS" | "Board" | "Init"
-        | "Editor" | "Brightness" | "Display" => Some(3),
-        "Network" | "Temperature" | "Audio" | "Local IP" | "Public IP" | "Weather" => Some(4),
+        | "Editor" | "Brightness" | "Display" | "Chassis" | "Power" | "Disk I/O" | "Net I/O" => {
+            Some(3)
+        }
+        "Network" | "Temperature" | "Audio" | "Local IP" | "Public IP" | "Weather"
+        | "Bluetooth" => Some(4),
         "Hyprland" | "Workspace" | "Clients" | "Focused" => Some(5),
         "Session" | "Window" | "Workspaces" | "Monitors" => Some(6),
         "Theme" | "Wallpaper" | "Ecosystem" | "Input" | "Colors" => Some(7),

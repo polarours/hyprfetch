@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `chassis`: the SMBIOS chassis type as a word (`Notebook`, `Desktop`,
+  `Rack mount`, …), so a laptop stops looking like a mystery box. Unknown codes
+  produce no row rather than a bare number.
+- `poweradapter`: every `Mains` supply from `/sys/class/power_supply`, with the
+  connected one first and the wattage when the kernel exposes `power_now`.
+- `bluetooth`: the names of currently connected devices, from `bluetoothctl`.
+  Opt-in — it spawns a command, and "adapter present" is not "device connected".
+- `diskio` / `netio`: throughput sampled over a 150 ms window from
+  `/proc/diskstats` and `/proc/net/dev`, with partitions, loop devices, `lo`
+  and container bridges excluded so nothing is counted twice. Opt-in: the
+  sample costs 150 ms each, which is the whole reason the default set stays
+  fast.
+- `chassis` and `poweradapter` join the default order (23 modules, ~32 rows).
 ## [0.2.3] - 2026-11-26
 
 ### Added

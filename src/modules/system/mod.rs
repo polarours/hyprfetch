@@ -7,6 +7,7 @@ mod firmware;
 mod hardware;
 mod media;
 mod network_ext;
+mod power;
 mod session;
 mod storage;
 
@@ -18,6 +19,7 @@ pub use firmware::{BiosModule, BoardModule, BrightnessModule, EditorModule, Init
 pub use hardware::{CpuModule, GpuModule, MemoryModule, SwapModule};
 pub use media::MediaModule;
 pub use network_ext::{DisplayModule, PublicIpModule, WeatherModule};
+pub use power::{BluetoothModule, ChassisModule, DiskIoModule, NetIoModule, PowerAdapterModule};
 pub use session::{
     AudioModule, ColorschemeModule, DatetimeModule, LocaleModule, NetworkModule, TemperatureModule,
 };

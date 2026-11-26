@@ -213,6 +213,7 @@ fn output_priority(id: &str) -> usize {
         | ModuleId::Host
         | ModuleId::Bios
         | ModuleId::Board
+        | ModuleId::Chassis
         | ModuleId::Kernel
         | ModuleId::InitSystem
         | ModuleId::Uptime
@@ -253,6 +254,10 @@ fn output_priority(id: &str) -> usize {
         | ModuleId::Display
         | ModuleId::Editor
         | ModuleId::Brightness
+        | ModuleId::PowerAdapter
+        | ModuleId::Bluetooth
+        | ModuleId::DiskIo
+        | ModuleId::NetIo
         | ModuleId::Wallpaper
         | ModuleId::HyprEcosystem
         | ModuleId::HyprSplash

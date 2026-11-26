@@ -56,6 +56,7 @@
 - Local IP, load average (1/5/15 min), process count and logged-in users — all cheap local reads, no network calls
 - BIOS and mainboard from DMI, the init system that owns PID 1, `$VISUAL`/`$EDITOR`, and backlight brightness
 - `display` (resolution and refresh rate, Hyprland first then DRM); `weather` and `publicip` are opt-in only — they make a network request, so they never run unless you ask
+- `chassis` (SMBIOS type) and `poweradapter` (whether wall power is connected) join the default set; `bluetooth`, `diskio` and `netio` are opt-in because they run a command or sample `/proc` over a 150 ms window
 - `--redact` rewrites the identifying values — account name, hostname, private IPs, Wi-Fi SSID, hardware serials — before anything is printed, so a screenshot can go public without leaking them
 
 ### Hyprland session
@@ -414,13 +415,13 @@ A plugin that fails or times out keeps its reason in the output, so a broken plu
 
 ## Defaults
 
-The shipped default is a curated 21-module set — identity, hardware, session
+The shipped default is a curated 23-module set — identity, hardware, session
 and the Hyprland headline (version, workspaces, theme, wallpaper) — which lands
 around 30 rows, the length of a screenshot. Everything else is diagnostics and
 is one flag away:
 
 ```bash
-hyprfetch --preset all       # every module, 46 of them
+hyprfetch --preset all       # every module
 hyprfetch --preset minimal   # 7 rows
 hyprfetch -m os,cpu,gpu,hypr-rules,hypr-binds   # pick your own
 ```
@@ -429,7 +430,7 @@ hyprfetch -m os,cpu,gpu,hypr-rules,hypr-binds   # pick your own
 
 | Group | Modules |
 |---|---|
-| System | `os`, `host`, `bios`, `board`, `kernel`, `initsystem`, `uptime`, `packages`, `shell`, `editor`, `terminal`, `cpu`, `gpu`, `memory`, `swap`, `disk`, `battery`, `brightness`, `locale`, `network`, `localip`, `publicip`, `loadavg`, `processes`, `users`, `weather`, `display`, `temperature`, `audio`, `media`, `datetime`, `colorscheme` |
+| System | `os`, `host`, `bios`, `board`, `chassis`, `kernel`, `initsystem`, `uptime`, `packages`, `shell`, `editor`, `terminal`, `cpu`, `gpu`, `memory`, `swap`, `disk`, `battery`, `poweradapter`, `brightness`, `locale`, `network`, `localip`, `publicip`, `loadavg`, `processes`, `users`, `bluetooth`, `diskio`, `netio`, `weather`, `display`, `temperature`, `audio`, `media`, `datetime`, `colorscheme` |
 | Hyprland | `hyprland`, `hypr-health`, `hypr-instances`, `hypr-splash`, `hypr-workspaces`, `hypr-monitors`, `hypr-active-window`, `hypr-cursor`, `hypr-workspace-history`, `hypr-config`, `hypr-rules`, `hypr-devices`, `hypr-binds`, `hypr-shortcuts`, `hypr-layouts`, `hypr-layers`, `hypr-ecosystem` |
 | Rice | `theme`, `wallpaper`, `hypr-rice` |
 

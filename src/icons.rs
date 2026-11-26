@@ -43,6 +43,11 @@ pub fn icon_for(key: &str) -> Option<char> {
         "Init" => '\u{f013}',        // fa-cog
         "Editor" => '\u{f044}',      // fa-pencil
         "Brightness" => '\u{f185}',  // fa-sun-o
+        "Chassis" => '\u{f109}',     // fa-laptop
+        "Power" => '\u{f1e6}',       // fa-plug
+        "Bluetooth" => '\u{f293}',   // fa-bluetooth-b
+        "Disk I/O" => '\u{f0a0}',    // fa-hdd-o
+        "Net I/O" => '\u{f0e8}',     // fa-exchange
         "Weather" => '\u{f0c2}',     // fa-cloud
         "Public IP" => '\u{f0ac}',   // fa-globe
         "Display" => '\u{f108}',     // fa-desktop
@@ -87,6 +92,11 @@ mod tests {
             "Swap",
             "Disk",
             "Battery",
+            "Chassis",
+            "Power",
+            "Bluetooth",
+            "Disk I/O",
+            "Net I/O",
             "Network",
             "Temperature",
             "Audio",

@@ -16,11 +16,13 @@ mod cpu;
 mod display;
 mod firmware;
 mod graphics;
+mod io;
 mod load;
 mod media;
 mod memory;
 mod network_ext;
 mod os;
+mod power;
 mod session;
 mod storage;
 
