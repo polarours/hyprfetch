@@ -5,68 +5,10 @@ All notable changes to hyprfetch will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.2] - 2026-11-26
-
-### Changed
-
-- Nerd Font icons are now on by default. The row labels keep their `[CPU]`
-  form and gain a glyph in front, because that is what a rice screenshot wants;
-  `--no-icons` (or `icons = false`) restores the bare labels for terminals
-  whose font lacks the private-use glyphs. Nothing changes for a user whose
-  terminal cannot show them beyond one extra column of `?` — the flag exists
-  precisely for that case.
-### Changed
-
-- The default config now ships 21 curated modules instead of all 46. The
-  previous file enabled every Hyprland diagnostic (health, rules, binds,
-  shortcuts, layers, ecosystem, …), which produced a 57-row wall of text where
-  a screenshot wants one glance. Output is now ~30 rows; the full set is
-  `--preset all` and the diagnostics are also reachable per module.
-- `Preset::Rice` is now the shipped default and is kept in step with it, so
-  `--init-config` and a config-less run produce the same thing.
-### Added
-
-- `--logo-image PATH` (`logo_image` in the config, `--logo-image-cols` for the
-  width ceiling): draws a PNG as the logo using the kitty graphics protocol,
-  which kitty, ghostty and WezTerm implement. The picture is scaled to the pixel
-  size of the cell box it occupies — the protocol's own `c`/`r` only move the
-  cursor, they do not resize the image — and sized so it fills the height of the
-  information block, capped at half the terminal. The rows are positioned beside
-  it with absolute cursor moves, and the arcade view switches off: a picture and
-  a HUD cannot share the same space.
-  Anything unusable (no protocol support, missing file, non-PNG, over 8 MB)
-  falls back to the text logo instead of printing raw escapes, and the payload
-  is never emitted when stdout is not a terminal.
-### Added
-
-- `display`: the focused monitor as `2560x1600 @165Hz (eDP-1)`. Hyprland is
-  asked first because it knows the refresh rate; outside the compositor the
-  row falls back to `/sys/class/drm` and simply omits the rate instead of
-  guessing.
-- `weather` and `publicip`, both **opt-in**. They shell out to `curl` with a
-  three-second budget, because a fetch tool should only send traffic when the
-  user asks for it. A failed lookup reports "module unavailable" rather than a
-  stale or invented value.
-### Added
-
-- `bios` and `board`: firmware vendor/version and mainboard model from
-  `/sys/class/dmi/id`, with the SMBIOS placeholders (`None`,
-  `To Be Filled By O.E.M.`) treated as absent so no row fills with noise.
-- `initsystem`: the init that owns PID 1, normalised to `systemd`, `OpenRC`,
-  `runit`, `s6` or `sysvinit`.
-- `editor`: `$VISUAL`, then `$EDITOR` (reduced to the binary name), then the
-  first of `nvim`/`vim`/`hx`/`nano`/`emacs` found on `PATH`.
-- `brightness`: average backlight level across `/sys/class/backlight` devices.
-- `bios`, `board` and `initsystem` join the default order; `editor` and
-  `brightness` stay opt-in.
 ## [Unreleased]
 
-### Changed
+## [0.2.3] - 2026-11-26
 
-- An image logo that cannot fill the information block — a wide picture capped
-  by the width ceiling, or a long module list next to a small image — is now
-  centred against the rows instead of hanging from the first line, which left
-  the picture floating above a block of empty background.
 ### Added
 
 - `--redact` (`redact = true` in the config): rewrites the values that should
@@ -76,6 +18,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Scrub-or-nothing is deliberate: dropping the row would hide the module too.
   It also switches the split/wave reveals to the line reveal, because those cut
   each line at the logo width and a shortened header would land inside it.
+
+### Changed
+
+- An image logo that cannot fill the information block — a wide picture capped
+  by the width ceiling, or a long module list next to a small image — is now
+  centred against the rows instead of hanging from the first line, which left
+  the picture floating above a block of empty background.
+- The README screenshots, the theme gallery and the landing page were
+  re-recorded with `--redact`, so the public images no longer carry a real
+  account name, hostname, address, SSID or serial.
+
+## [0.2.2] - 2026-11-26
+
+### Added
+
+- `--logo-image PATH` (`logo_image` in the config, `--logo-image-cols` for the
+  width ceiling): draws a PNG as the logo using the kitty graphics protocol,
+  which kitty, ghostty and WezTerm implement. The picture is scaled to the pixel
+  size of the cell box it occupies — the protocol's own `c`/`r` only move the
+  cursor, they do not resize the image — and sized so it fills the height of the
+  information block, capped at a third of the terminal. The rows are positioned
+  beside it with absolute cursor moves, and the arcade view switches off: a
+  picture and a HUD cannot share the same space. Anything unusable (no protocol
+  support, missing file, non-PNG, over 8 MB) falls back to the text logo instead
+  of printing raw escapes, and the payload is never emitted when stdout is not a
+  terminal.
+- `display`: the focused monitor as `2560x1600 @165Hz (eDP-1)`. Hyprland is
+  asked first because it knows the refresh rate; outside the compositor the row
+  falls back to `/sys/class/drm` and simply omits the rate instead of guessing.
+- `weather` and `publicip`, both **opt-in**. They shell out to `curl` with a
+  three-second budget, because a fetch tool should only send traffic when the
+  user asks for it. A failed lookup reports "module unavailable" rather than a
+  stale or invented value.
+- `bios` and `board`: firmware vendor/version and mainboard model from
+  `/sys/class/dmi/id`, with the SMBIOS placeholders (`None`,
+  `To Be Filled By O.E.M.`) treated as absent so no row fills with noise.
+- `initsystem`: the init that owns PID 1, normalised to `systemd`, `OpenRC`,
+  `runit`, `s6` or `sysvinit`.
+- `editor`: `$VISUAL`, then `$EDITOR` (reduced to the binary name), then the
+  first of `nvim`/`vim`/`hx`/`nano`/`emacs` found on `PATH`.
+- `brightness`: average backlight level across `/sys/class/backlight` devices.
+
+### Changed
+
+- Nerd Font icons are now on by default. The row labels keep their `[CPU]` form
+  and gain a glyph in front, because that is what a rice screenshot wants;
+  `--no-icons` (or `icons = false`) restores the bare labels for terminals whose
+  font lacks the private-use glyphs.
+- The default config now ships 21 curated modules instead of all 46. The
+  previous file enabled every Hyprland diagnostic (health, rules, binds,
+  shortcuts, layers, ecosystem, …), which produced a 57-row wall of text where a
+  screenshot wants one glance. Output is now ~30 rows; the full set is
+  `--preset all` and the diagnostics are also reachable per module.
+- `Preset::Rice` is now the shipped default and is kept in step with it, so
+  `--init-config` and a config-less run produce the same thing.
+- `bios`, `board` and `initsystem` join the default order; `editor` and
+  `brightness` stay opt-in.
+
 ## [0.2.1] - 2026-11-25
 
 ### Added
