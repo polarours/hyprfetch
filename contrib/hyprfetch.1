@@ -74,6 +74,12 @@ exists so a config with
 .B icons = false
 can be overridden for one run.
 .TP
+.B \-\-redact
+Replace the values that identify the machine before printing: the account name,
+hostname, private IPv4 and MAC addresses, the Wi-Fi SSID and hardware serials.
+Rows, labels and columns are untouched, so the output still shows the layout.
+Use it before a screenshot goes into a README, an issue or a release page.
+.TP
 .B \-\-no\-icons
 Print the plain
 .B [LABEL]

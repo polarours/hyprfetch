@@ -61,6 +61,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `brightness` stay opt-in.
 ## [Unreleased]
 
+### Added
+
+- `--redact` (`redact = true` in the config): rewrites the values that should
+  not appear in a public screenshot — account name, hostname, private IPv4 and
+  MAC addresses, the Wi-Fi SSID and hardware serials — while leaving every row,
+  label and column untouched, so the output still shows what the tool does.
+  Scrub-or-nothing is deliberate: dropping the row would hide the module too.
+  It also switches the split/wave reveals to the line reveal, because those cut
+  each line at the logo width and a shortened header would land inside it.
 ## [0.2.1] - 2026-11-25
 
 ### Added

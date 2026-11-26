@@ -56,6 +56,7 @@
 - Local IP, load average (1/5/15 min), process count and logged-in users — all cheap local reads, no network calls
 - BIOS and mainboard from DMI, the init system that owns PID 1, `$VISUAL`/`$EDITOR`, and backlight brightness
 - `display` (resolution and refresh rate, Hyprland first then DRM); `weather` and `publicip` are opt-in only — they make a network request, so they never run unless you ask
+- `--redact` rewrites the identifying values — account name, hostname, private IPs, Wi-Fi SSID, hardware serials — before anything is printed, so a screenshot can go public without leaking them
 
 ### Hyprland session
 
@@ -109,6 +110,7 @@ hyprfetch --preset minimal      # short core rows
 hyprfetch --preset all          # every default module
 hyprfetch --fast                # near-instant render (~18 ms)
 hyprfetch --no-icons            # plain labels, for fonts without Nerd Font glyphs
+hyprfetch --redact              # scrub account, host, IPs, SSID and serials before a screenshot
 hyprfetch --logo-image me.png   # draw a PNG logo (kitty / ghostty / WezTerm)
 hyprfetch --share               # rice-screenshot preset
 hyprfetch --plain               # no styling

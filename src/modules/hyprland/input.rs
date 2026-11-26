@@ -362,6 +362,7 @@ mod tests {
             plugins: Vec::new(),
             json: false,
             fast: false,
+            redact: false,
             diagnostics: false,
             doctor: false,
             retro: false,

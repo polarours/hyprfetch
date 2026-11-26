@@ -81,6 +81,10 @@ pub struct CliArgs {
     /// Force Nerd Font icons on (they are already the default).
     #[arg(long)]
     pub icons: bool,
+    /// Replace identifying values (account name, hostname, IPs, SSID, serials)
+    /// before printing. Use it before a screenshot goes public.
+    #[arg(long)]
+    pub redact: bool,
     /// Turn the icons off: plain [LABEL] tags only, for terminals whose font
     /// lacks the Nerd Font private-use glyphs.
     #[arg(long)]

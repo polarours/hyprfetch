@@ -113,6 +113,14 @@ impl App {
         };
 
         let (output, logo_width) = render::render(&outputs, &runtime)?;
+        // Scrubbing happens on the finished text, so every row stays in place
+        // and only the values change.
+        let scrubbed = runtime.redact;
+        let output = if scrubbed {
+            crate::redact::redact(&output)
+        } else {
+            output
+        };
         // The chosen style upgrades the reveal now that the logo width is
         // known: a layout without a logo column falls back to plain lines,
         // and a gated run stays static whatever the style says.
@@ -138,6 +146,22 @@ impl App {
             }
             (_, _) => reveal,
         };
+        // The split and wave reveals cut each line at the logo width and step the
+        // cursor back up over them. Scrubbing shortens some values (the account
+        // name in the header sits well inside that prefix), so those cuts would
+        // land in the wrong place and eat the header. The line-by-line reveal
+        // prints whole lines and is safe to combine with redaction.
+        let reveal = if scrubbed {
+            match reveal {
+                animation::Reveal::TwoPhase { .. } | animation::Reveal::Wave { .. } => {
+                    animation::Reveal::Lines
+                }
+                other => other,
+            }
+        } else {
+            reveal
+        };
+
         Ok((output, reveal))
     }
 

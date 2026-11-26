@@ -111,6 +111,7 @@ pub fn merge(cli: &CliArgs, config: AppConfig) -> RuntimeConfig {
         // cannot run.
         animation: cli.animation.or(config.animation).unwrap_or_default(),
         fast: cli.fast || config.fast,
+        redact: cli.redact || config.redact,
         watch: cli.watch,
         watch_interval: cli.watch_interval,
     }
@@ -175,6 +176,7 @@ mod tests {
             no_config: false,
             plain: false,
             fast: false,
+            redact: false,
             animation: None,
             share: false,
             watch: false,
@@ -201,6 +203,7 @@ mod tests {
                 logo: super::super::LogoConfig::default(),
                 animation: None,
                 fast: false,
+                redact: false,
                 retro: false,
                 icons: false,
 
@@ -237,6 +240,7 @@ mod tests {
             no_config: false,
             plain: false,
             fast: false,
+            redact: false,
             animation: None,
             share: false,
             watch: false,
@@ -291,6 +295,7 @@ mod tests {
             no_config: false,
             plain: true,
             fast: false,
+            redact: false,
             animation: None,
             share: false,
             watch: false,
@@ -314,6 +319,7 @@ mod tests {
                 logo: super::super::LogoConfig::default(),
                 animation: None,
                 fast: false,
+                redact: false,
                 retro: false,
                 icons: false,
 
@@ -359,6 +365,7 @@ mod tests {
             no_config: false,
             plain: false,
             fast: false,
+            redact: false,
             animation: None,
             share: false,
             watch: false,
@@ -384,6 +391,7 @@ mod tests {
                 logo: super::super::LogoConfig::default(),
                 animation: None,
                 fast: false,
+                redact: false,
                 retro: false,
                 icons: false,
 
@@ -425,6 +433,7 @@ mod tests {
             no_config: false,
             plain: false,
             fast: false,
+            redact: false,
             animation: None,
             share: false,
             watch: false,
@@ -449,6 +458,7 @@ mod tests {
                 logo: super::super::LogoConfig::default(),
                 animation: None,
                 fast: false,
+                redact: false,
                 retro: false,
                 icons: false,
 
@@ -489,6 +499,7 @@ mod tests {
             no_config: false,
             plain: false,
             fast: false,
+            redact: false,
             animation: None,
             share: true,
             watch: false,
@@ -513,6 +524,7 @@ mod tests {
                 logo: super::super::LogoConfig::default(),
                 animation: None,
                 fast: false,
+                redact: false,
                 retro: false,
                 icons: false,
 
@@ -551,6 +563,7 @@ mod tests {
             no_config: false,
             plain: false,
             fast: false,
+            redact: false,
             animation: None,
             share: true,
             watch: false,
@@ -575,6 +588,7 @@ mod tests {
                 logo: super::super::LogoConfig::default(),
                 animation: None,
                 fast: false,
+                redact: false,
                 retro: false,
                 icons: false,
 

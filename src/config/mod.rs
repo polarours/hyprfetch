@@ -30,6 +30,8 @@ pub struct AppConfig {
     pub logo: LogoConfig,
     /// How the output is animated: "split", "lines", "wave" or "static".
     pub animation: Option<crate::animation::RevealStyle>,
+    /// Replace identifying values in the output (for public screenshots).
+    pub redact: bool,
     /// Skip expensive probes for a near-instant render.
     pub fast: bool,
     /// Render with retro arcade styling.
@@ -55,6 +57,7 @@ impl Default for AppConfig {
             logo: LogoConfig::default(),
             animation: None,
             fast: false,
+            redact: false,
             retro: true,
             icons: true,
             custom_logo: None,
@@ -235,6 +238,8 @@ pub struct RuntimeConfig {
     pub icons: bool,
     pub animation: crate::animation::RevealStyle,
     pub fast: bool,
+    /// Scrub identifying values before the output is printed.
+    pub redact: bool,
     pub watch: bool,
     pub watch_interval: u64,
 }

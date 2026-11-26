@@ -42,6 +42,7 @@ pub mod model;
 pub mod modules;
 pub mod plugins;
 pub mod providers;
+pub mod redact;
 pub mod render;
 pub mod theme;
 pub mod util;
