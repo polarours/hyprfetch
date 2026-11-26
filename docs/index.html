@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>hyprfetch — a Hyprland-native fetch utility</title>
-<meta name="description" content="Hyprland-native fetch utility for rice screenshots — live workspace, window and monitor state, theme/ecosystem awareness, 18 palettes and 430 logos." />
+<meta name="description" content="Hyprland-native fetch utility for rice screenshots — live workspace, window and monitor state, Nerd Font icons, image logos, 18 palettes and 431 distro logos, plus --redact for public screenshots." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
@@ -79,7 +79,7 @@
   /* ---- terminal window (signature) ---- */
   .stage { padding: 30px 0 70px; }
   .terminal {
-    max-width: 940px; margin: 0 auto; border: 1px solid var(--border);
+    max-width: 1000px; margin: 0 auto; border: 1px solid var(--border);
     border-radius: 12px; overflow: hidden; background: var(--bg-2);
     box-shadow: 0 30px 80px -30px rgba(122,162,247,.28), 0 0 0 1px rgba(122,162,247,.05);
     animation: rise .7s cubic-bezier(.2,.8,.2,1) both;
@@ -176,7 +176,7 @@
   <div class="wrap hero">
     <img class="wordmark" src="assets/hyprfetch-wordmark.svg" alt="hyprfetch" />
     <p class="tagline">a <b>Hyprland-native</b> fetch utility</p>
-    <p class="sub">Live workspace, window and monitor state — plus the theme, wallpaper and daemons behind your rice. Rendered in ~50&nbsp;ms.</p>
+    <p class="sub">Live workspace, window and monitor state — plus the theme, wallpaper and daemons behind your rice. Nerd Font icons by default, a real PNG logo if you want one, rendered in ~50&nbsp;ms.</p>
     <div class="cta">
       <a class="btn primary" href="#install">yay -S hyprfetch-git</a>
       <a class="btn" href="https://github.com/polarours/hyprfetch">View on GitHub</a>
@@ -186,7 +186,7 @@
   <div class="wrap stage">
     <div class="terminal">
       <div class="bar">
-        <span class="path"><span class="prompt">❯</span> hyprfetch <span class="flag">--animation wave</span></span>
+        <span class="path"><span class="prompt">❯</span> hyprfetch <span class="flag">--redact</span></span>
         <span class="live"><i></i> live output</span>
       </div>
       <img src="assets/demo.gif" alt="Animated hyprfetch output: the distro logo draws first in pixel blocks, then system and Hyprland rows fill in" />
@@ -212,7 +212,7 @@
         <div class="card c3">
           <div class="ic">03 / PRESENTATION</div>
           <h3>Made for screenshots</h3>
-          <p>Distro logos in solid pixel blocks, 18 palettes, usage bars and a four-style reveal animation. Width-aware layout that degrades gracefully.</p>
+          <p>Distro logos in solid pixel blocks, Nerd Font glyphs in front of every label, and 18 palettes. Point <code>--logo-image</code> at a PNG and it is drawn beside the rows. Width-aware layout that degrades gracefully.</p>
         </div>
       </div>
     </div>
@@ -221,7 +221,7 @@
   <section id="themes">
     <div class="wrap">
       <p class="eyebrow">--list-themes</p>
-      <h2>Seventeen palettes. One binary.</h2>
+      <h2>Eighteen palettes. One binary.</h2>
       <p class="lead">Every palette is verified against the theme's own source and colors the keys, title, logo, bars and values together. Pick one by name.</p>
       <div class="themes">
         <div class="theme">
@@ -248,6 +248,8 @@
       <div class="codebox"><span class="dollar">$</span><code>yay -S hyprfetch-git</code><button data-copy="yay -S hyprfetch-git">copy</button></div>
       <div class="codebox"><span class="dollar">$</span><code>cargo install --path . --locked</code><button data-copy="cargo install --path . --locked">copy</button></div>
       <p class="lead" style="margin-top:22px">Then just run <code style="font-family:var(--mono);color:var(--cyan)">hyprfetch</code>. Need it faster? <code style="font-family:var(--mono);color:var(--cyan)">hyprfetch --fast</code> skips the expensive probes.</p>
+      <p class="lead">Posting the screenshot somewhere? <code style="font-family:var(--mono);color:var(--cyan)">hyprfetch --redact</code> replaces your account name, hostname, private IP, Wi-Fi SSID and hardware serials before anything is printed — the rows and layout stay exactly as they are.</p>
+      <p class="lead">The default is a curated 21 modules (about 30 rows). <code style="font-family:var(--mono);color:var(--cyan)">--preset all</code> brings back every diagnostic, <code style="font-family:var(--mono);color:var(--cyan)">--preset minimal</code> trims it to seven.</p>
     </div>
   </section>
 </main>

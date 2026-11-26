@@ -40,6 +40,34 @@ Print the default configuration to standard output and exit.
 .B \-\-no\-config
 Ignore the configuration file for this run.
 .TP
+.BI \-\-preset " name"
+Apply a built-in preset before any other flag:
+.B all
+(every module),
+.B rice
+(the shipped default: identity, hardware, session and the Hyprland headline)
+or
+.B minimal
+(seven rows). Explicit flags still win over the preset.
+.TP
+.BI \-m ", " \-\-modules " list"
+Report only the comma-separated module IDs in
+.I list
+and in that order.
+.B \-\-list\-modules
+prints every ID the binary can build.
+.TP
+.BI \-\-theme\-file " path"
+Read a standalone theme file (an
+.B [appearance]
+table) that sets the look only and never the module list.
+.TP
+.BI \-\-logo\-file " path"
+Render the ASCII artwork in
+.I path
+instead of a built-in logo. The lines are coloured from the active palette,
+so the file only supplies the drawing.
+.TP
 .B \-\-retro
 Force the arcade styling on. It is already the default; the flag exists so a
 config with
@@ -181,6 +209,10 @@ Print the collected modules as JSON.
 .B \-\-diagnostics
 Print the status of every module, including the ones that are
 unavailable, and a summary of the counts.
+.TP
+.B \-\-doctor
+Explain why modules failed and what to install or start to fix them. Use it when
+a row reads "unavailable" and the reason is not obvious.
 .TP
 .B \-\-list\-logos
 Print the names of the available logos and exit.
