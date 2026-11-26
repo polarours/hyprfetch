@@ -91,6 +91,18 @@ pub fn render(
 /// Returns `None` whenever the terminal cannot do it or the file is unusable,
 /// so the caller falls back to the text layout rather than printing raw escape
 /// codes into the output.
+/// Where the picture starts, given how tall it is and how tall the rows are.
+///
+/// Centred when there is real slack, top-aligned when the two are close: a
+/// one- or two-row difference reads as a mistake, not as a composition.
+fn logo_start_row(rows: u32, target_rows: u32) -> u32 {
+    if rows + 2 < target_rows {
+        (target_rows - rows) / 2 + 1
+    } else {
+        1
+    }
+}
+
 fn render_image_logo(
     outputs: &[ModuleOutput],
     runtime: &RuntimeConfig,
@@ -126,8 +138,18 @@ fn render_image_logo(
     // Scale the pixels to the box: the protocol's c/r only moves the cursor.
     let scaled = logo_image::scale_to_box(&png, cols, rows, logo_image::cell_pixels());
 
+    // A picture that cannot fill the block (a wide image capped by the width
+    // ceiling) is centred against the rows instead of hanging from the top:
+    // the eye reads the pair as one composition, not as a logo with a hole
+    // underneath it. One row of slack is left at the top so nothing looks glued
+    // to the first line.
+    let start_row = logo_start_row(rows, target_rows);
+
     let text_col = cols + 2;
     let mut rendered = String::from("\x1b[H");
+    if start_row > 1 {
+        rendered.push_str(&format!("\x1b[{start_row};1H"));
+    }
     rendered.push_str(&logo_image::apc(&scaled, cols, rows));
     for (index, line) in lines.iter().enumerate() {
         rendered.push_str(&format!("\x1b[{};{}H{}", index + 1, text_col, line));
@@ -382,5 +404,25 @@ mod tests {
         assert!(rendered.contains("os: ok"));
         assert!(rendered.contains("hyprland: partial - clients unavailable"));
         assert!(rendered.contains("wallpaper: unavailable - no wallpaper backend detected"));
+    }
+
+    #[test]
+    fn a_short_picture_is_centred_against_the_rows() {
+        // 20 rows of picture inside 50 rows of text: 15 rows of slack, so it
+        // starts at row 16.
+        assert_eq!(logo_start_row(20, 50), 16);
+        assert_eq!(logo_start_row(30, 54), 13);
+    }
+
+    #[test]
+    fn a_close_fit_stays_at_the_top() {
+        assert_eq!(logo_start_row(50, 50), 1);
+        assert_eq!(logo_start_row(48, 50), 1);
+        assert_eq!(logo_start_row(49, 50), 1);
+    }
+
+    #[test]
+    fn a_taller_picture_never_shifts_down() {
+        assert_eq!(logo_start_row(60, 50), 1);
     }
 }

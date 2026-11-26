@@ -61,6 +61,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `brightness` stay opt-in.
 ## [Unreleased]
 
+### Changed
+
+- An image logo that cannot fill the information block — a wide picture capped
+  by the width ceiling, or a long module list next to a small image — is now
+  centred against the rows instead of hanging from the first line, which left
+  the picture floating above a block of empty background.
 ### Added
 
 - `--redact` (`redact = true` in the config): rewrites the values that should
