@@ -48,6 +48,7 @@ pub fn icon_for(key: &str) -> Option<char> {
         "Bluetooth" => '\u{f293}',   // fa-bluetooth-b
         "Disk I/O" => '\u{f0a0}',    // fa-hdd-o
         "Net I/O" => '\u{f0e8}',     // fa-exchange
+        "OpenGL" => '\u{f1b2}',      // fa-cube
         "Weather" => '\u{f0c2}',     // fa-cloud
         "Public IP" => '\u{f0ac}',   // fa-globe
         "Display" => '\u{f108}',     // fa-desktop
@@ -97,6 +98,7 @@ mod tests {
             "Bluetooth",
             "Disk I/O",
             "Net I/O",
+            "OpenGL",
             "Network",
             "Temperature",
             "Audio",

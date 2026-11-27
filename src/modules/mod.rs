@@ -41,6 +41,7 @@ pub fn build_module(id: ModuleId) -> Box<dyn Module> {
         ModuleId::Bluetooth => Box::new(system::BluetoothModule),
         ModuleId::DiskIo => Box::new(system::DiskIoModule),
         ModuleId::NetIo => Box::new(system::NetIoModule),
+        ModuleId::OpenGl => Box::new(system::OpenGlModule),
         ModuleId::Locale => Box::new(system::LocaleModule),
         ModuleId::Network => Box::new(system::NetworkModule),
         ModuleId::Temperature => Box::new(system::TemperatureModule),

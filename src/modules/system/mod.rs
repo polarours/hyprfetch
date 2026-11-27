@@ -4,6 +4,7 @@
 mod basics;
 mod extras;
 mod firmware;
+mod graphics_ext;
 mod hardware;
 mod media;
 mod network_ext;
@@ -16,6 +17,7 @@ pub use basics::{
 };
 pub use extras::{LoadAverageModule, LocalIpModule, ProcessesModule, UsersModule};
 pub use firmware::{BiosModule, BoardModule, BrightnessModule, EditorModule, InitSystemModule};
+pub use graphics_ext::OpenGlModule;
 pub use hardware::{CpuModule, GpuModule, MemoryModule, SwapModule};
 pub use media::MediaModule;
 pub use network_ext::{DisplayModule, PublicIpModule, WeatherModule};

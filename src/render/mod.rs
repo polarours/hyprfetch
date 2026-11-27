@@ -258,6 +258,7 @@ fn output_priority(id: &str) -> usize {
         | ModuleId::Bluetooth
         | ModuleId::DiskIo
         | ModuleId::NetIo
+        | ModuleId::OpenGl
         | ModuleId::Wallpaper
         | ModuleId::HyprEcosystem
         | ModuleId::HyprSplash

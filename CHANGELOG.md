@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and container bridges excluded so nothing is counted twice. Opt-in: the
   sample costs 150 ms each, which is the whole reason the default set stays
   fast.
+- `opengl`: the OpenGL core-profile version and renderer from `glxinfo -B`.
+  Opt-in — it needs XWayland on a Wayland session and takes a couple hundred
+  milliseconds. The `/PCIe/SSE2` transport suffix is trimmed off the renderer,
+  which is noise in a one-line row.
 - `chassis` and `poweradapter` join the default order (23 modules, ~32 rows).
 ## [0.2.3] - 2026-11-26
 

@@ -16,6 +16,7 @@ mod cpu;
 mod display;
 mod firmware;
 mod graphics;
+mod graphics_ext;
 mod io;
 mod load;
 mod media;

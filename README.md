@@ -430,7 +430,7 @@ hyprfetch -m os,cpu,gpu,hypr-rules,hypr-binds   # pick your own
 
 | Group | Modules |
 |---|---|
-| System | `os`, `host`, `bios`, `board`, `chassis`, `kernel`, `initsystem`, `uptime`, `packages`, `shell`, `editor`, `terminal`, `cpu`, `gpu`, `memory`, `swap`, `disk`, `battery`, `poweradapter`, `brightness`, `locale`, `network`, `localip`, `publicip`, `loadavg`, `processes`, `users`, `bluetooth`, `diskio`, `netio`, `weather`, `display`, `temperature`, `audio`, `media`, `datetime`, `colorscheme` |
+| System | `os`, `host`, `bios`, `board`, `chassis`, `kernel`, `initsystem`, `uptime`, `packages`, `shell`, `editor`, `terminal`, `cpu`, `gpu`, `memory`, `swap`, `disk`, `battery`, `poweradapter`, `brightness`, `locale`, `network`, `localip`, `publicip`, `loadavg`, `processes`, `users`, `bluetooth`, `diskio`, `netio`, `opengl`, `weather`, `display`, `temperature`, `audio`, `media`, `datetime`, `colorscheme` |
 | Hyprland | `hyprland`, `hypr-health`, `hypr-instances`, `hypr-splash`, `hypr-workspaces`, `hypr-monitors`, `hypr-active-window`, `hypr-cursor`, `hypr-workspace-history`, `hypr-config`, `hypr-rules`, `hypr-devices`, `hypr-binds`, `hypr-shortcuts`, `hypr-layouts`, `hypr-layers`, `hypr-ecosystem` |
 | Rice | `theme`, `wallpaper`, `hypr-rice` |
 
